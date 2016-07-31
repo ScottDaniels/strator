@@ -1,0 +1,9 @@
+
+Strator consists of three main parts:
+	scribble_r[_ssl]
+	strator.html
+	*.js
+
+To install and run, build scribble_r or scribble_r_ssl and start executing on the same host where the 
+HTML will be served from.  Add the HTML and javascript files to a directory where the host's http server
+can find them.  

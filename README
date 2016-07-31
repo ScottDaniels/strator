@@ -1,0 +1,14 @@
+
+Strator is an HTML-5 scribble board which allows multiple concurrent users to concurrently update and view
+a blackboard.  The HTML-5 is javascript based and when invoked establishes a websocket session (either in 
+the clear or via ssl) to a scribble_r repeater.  Items placed by the user on the blackboard are sent
+to the repeater and forwered to all other connected strator processes which have joined the group.
+
+Groups are a way of organising multiple blackboards via the same repeater, and can be password protected
+and/or read only.  A password protracted group allows a Strator process to join the group only if the 
+user provides the correct process. A read only group will supply all Strator processes updates, but only
+the Strator which creaed the group will have the abilty to write on the board such that the changes are
+forward to all members of the group. 
+
+The doc directory contains a user's manual which can be formatted into HTML and linked from the main
+Strator html file.

@@ -1,0 +1,611 @@
+<html>
+<!--
+# vim: set noet ts=4 sw=4 background=dark nocindent fileformats=unix :
+#
+#=================================================================================================
+#    (c) Copyright 2012-2016 By E. Scott Daniels. All rights reserved.
+#
+#    Redistribution and use in source and binary forms, with or without modification, are
+#    permitted provided that the following conditions are met:
+#
+#        1. Redistributions of source code must retain the above copyright notice, this list of
+#            conditions and the following disclaimer.
+#
+#        2. Redistributions in binary form must reproduce the above copyright notice, this list
+#            of conditions and the following disclaimer in the documentation and/or other materials
+#            provided with the distribution.
+#
+#    THIS SOFTWARE IS PROVIDED BY E. Scott Daniels ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#    FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL E. Scott Daniels OR
+#    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+#    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+#    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#    ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#    The views and conclusions contained in the software and documentation are those of the
+#    authors and should not be interpreted as representing official policies, either expressed
+#    or implied, of E. Scott Daniels.
+#=================================================================================================
+
+This is a static html page which references all of the necessary javascript source files (assumed
+to be in the same directory as this page on the http server) and sets up the various css style
+for the page.  At the end the main control javascript is invoked with the assumption that the 
+strator_r repeater process is running on the same host as the http server, and is listening on 
+port 29436.  The hostname for the websocket session is determined by the content of the  
+window.location element in the document (see strator.js) and the port is hard coded in this file.
+(See the 'strator.driver.mk( 29436, null )` call at the end)
+-->
+
+<head>
+<script type="application/x-javascript" src=strator_doctools.js></script>
+<script type="application/x-javascript" src=symtab.js></script>
+<script type="application/x-javascript" src=tools.js></script>
+<script type="application/x-javascript" src=strator.js></script>
+<script type="application/x-javascript" src=strator_coterie.js></script>
+<script type="application/x-javascript" src=strator_session.js></script>
+<script type="application/x-javascript" src=strator_lings.js></script>
+<script type="application/x-javascript" src=strator_popup.js></script>
+
+<style type="text/css">
+	.popup {
+		font-family: sans-serif; 
+		z-index: 12; 
+		position: absolute; 
+		padding: 10px; 
+		top: 60px; 
+		left: 150px; 
+		padding-top: 10px;  
+		border: solid 1px orange; 
+		border-top: solid 10px orange;  
+		color: white; 
+		background-color: #000000; 
+		opacity: .85; 
+		display: none;
+	}
+
+	.link {
+		font-size: 12; 
+		font-family: sans-serif; 
+		color: yellow;
+	}
+
+	.popup-smtitle {
+		font-size: 12; 
+		font-family: sans-serif; 
+		padding-top: 5px; 
+		color: white;
+	}
+
+	.popup-title {
+		font-size: 14; 
+		font-family: sans-serif; 
+		padding-top: 5px; 
+		color: white;
+	}
+
+	.radio-r {
+		padding-left: 0px;
+	}
+
+	.radio-l {
+		padding-right: 0px;
+	}
+
+	.action-button {
+		font-size: 12; 
+		font-family: sans-serif; 
+		color: black;
+		background-color: #8fc0ff;
+	}
+
+	.hold {
+		background-color: #FFFFBF;
+	}
+
+	.popup-button {
+		font-size: 12; 
+		font-family: sans-serif; 
+		color: black;
+		background-color: #FF9F5A;
+	}
+
+	.save-button {
+		font-size: 12; 
+		font-family: sans-serif; 
+		color: white;
+		background-color: #00af00;
+	}
+
+	.cancel-button {
+		font-size: 12; 
+		font-family: sans-serif; 
+		color: white;
+		background-color: #af0000;
+	}
+
+	.col-head {
+		font-size: 12; 
+		font-family: sans-serif; 
+		padding-left: 0px; 
+		padding-top: 1px; 
+		padding-right: 25px; 
+		color: #00ff00;
+	}
+
+	.label {
+		font-size: 12; 
+		font-family: sans-serif; 
+		padding-left: 5px; 
+		padding-top: 5px; 
+		color: #00ff00;
+	}
+
+	.indented {
+		padding-left: 10px
+	}
+
+	.value {
+		color: #ffffff; 
+		font-family: sans-serif; 
+		font-size: 12;
+		padding-left: 10px;
+	}
+
+	.table-list {
+		color: #00ff00; 
+		font-family: sans-serif; 
+		font-size: 10;
+		padding-left: 1px;
+	}
+	.list {
+		color: #00ff00; 
+		font-family: sans-serif; 
+		font-size: 10;
+		padding-left: 10px;
+	}
+
+	.text-input {
+		background-color: black; 
+		opacity: 1; 
+		color: white; 
+		height: 20px;
+	}
+</style>
+
+</head>
+<body style="background-color: #000010;" >
+
+<!--  ============== load/save file  popup ================= -->
+<div id="file-popup"  class="popup" style="left: 400px; top: 200px" onmousedown='javascript: doctools.obj_mousedown( "file-popup", 15  );' > 
+<span class="popup-title">Load/Save Scribblings</span>
+<br /> <br />
+<table>
+	<tr valign="top"><td>
+		<span class="label">Load file:</span>
+	</td><td>
+		<span class="value">Click choose button, select a file, </span><br /><span class="value">then click the load button.</span>
+	</td><td>
+		<input type="file" style="background: black; border: solid 1px green; color: white" maxlength=1024 size=20 id="file-file"  />
+	</td><td>
+		<button id="load-file" class="save-button">Load</button>
+	</td</tr>
+</table>
+<br />
+<table>
+	<tr valign="top"><td>
+		<span class="label" class="save-button">Save file:</span>
+	</td><td>
+		<span class="value">Just click save button.</span>
+	</td><td>
+		<button id="save-file" class="save-button">Save</button>
+	</td><td>
+</table>
+
+<br /> 
+<button id="cancel-file" class="cancel-button">Cancel</button>
+</div>
+
+<!--  ============== solid edit popup ================= -->
+<div id="solidedit-popup"  class="popup" style="left: 400px; top: 200px" onmousedown='javascript: doctools.obj_mousedown( "solidedit-popup"  );' >
+<span class="popup-title">Edit Shape</span>
+<br /> <br />
+	<div id="circdiv-splidedit" style="padding: 7px; border-bottom: solid 1px #808080;">
+	<span class="popup-smtitle">Circle:</span>
+		<br />
+		<span class="label"> Start Deg:</span>
+		<input class="text-input" id="circstart-soledit" size="4" maxlength="4" type="text" value="0" >
+		<br />
+		<span class="label"> End Deg:</span>
+		<input class="text-input" id="circend-soledit"  size="4" maxlength="4" type="text" value="360" >
+	</div>
+
+	<div id="rotdiv-splidedit" style="padding: 7px; border-bottom: solid 1px #808080;">
+	<span class="label">Rotation:</span>
+		<input class="text-input" id="rotation-soledit" size="4" maxlength="4" type="text" value="0" />
+	</div>
+	
+	<div id="paintdiv-splidedit" style="padding: 7px; border-bottom: solid 1px #909090;">
+		Paint Style: <br />
+		<div style="padding-left: 10%;  color: #00ff00;">
+			<input checked	type=radio id="outline-soledit-radio" name="se-fillx" value=2>Outline</input> <br />
+			<input          type=radio id="fill-soledit-radio" name="se-fillx" value=1></input>Filled <br />
+			<input          type=radio id="fillout-soledit-radio" name="se-fillx" value=3>Fill + Outline</input> <br />
+		</div>
+	</div>
+	
+	<div id="opacdiv-splidedit" style="padding: 7px; border-bottom: solid 1px #808080;">
+		<span class=popup-smtitle>Opacity:</span><span id="opacval-soledit" class="value">100</span><br />
+		<span class="label" style="font-size: 14;">0%</span>
+			<input id="opac-soledit" type="range" min="0" max="100" step="10" value="100" style="width: 75px" >
+		<span class=label>100%</span>
+	</div>
+
+<br /> <br />
+<button id="accept-soledit" class="save-button">Save Changes</button>
+<button id="cancel-soledit" class="cancel-button">Cancel</button>
+</div>
+
+
+
+<!--  ============== text edit popup ================= -->
+<div id="textedit-popup"  class="popup" onmousedown='javascript: doctools.obj_mousedown( "textedit-popup"  );' >
+<span class="popup-title">Edit Text</span><br />
+<span style="padding-left: 10px">
+<input class="text-input" id="newtext-edit" size="70" maxlength="1024" type="text" value="foo" />
+</span>
+<br /><br />
+<span class="popup-title">Change:</span><br />
+
+<table><tr><td>
+<!-- <input class="text-input" id="txtsize-edit" size="2" maxlength="2" type="text" value="10" /> 
+</td><td>
+-->
+<span class="label">Font size:</span>
+		<span class="value" id="txtsize-value-edit" style="font-family: sans-serif; font-size: 14px;" value="string">12</span>
+</td><td>
+		<span class="label" style="font-family: sans-serif; font-size: 8px;">A</span> 
+		<span class="label" style="padding-left: 100; padding-right: 20px; font-family: sans-serif; font-size: 18px;">A</span> <br />
+		<input id="txtsize-edit" type="range" min="10" max="48" step="2" value="12" style="width: 120" ><br />
+</td><td>
+	
+
+<span class="label">Rotation:</span>
+<input class="text-input" id="txtrotation-edit" size="4" maxlength="4" type="text" value="0" />
+
+</td</tr>
+</table>
+
+<br />
+<br />
+<button id="accept-edit" class="save-button">Save Changes</button>
+<button id="cancel-edit" class="cancel-button">Cancel</button>
+</div>
+
+<!--  ============== ling control popup ================= -->
+<div id="ctl-popup"  class="popup" style="left: 15px;"  onmousedown='javascript: doctools.obj_mousedown( "ctl-popup"  );' >
+<span class="popup-title">Control</span><br />
+
+<div class="indented">
+<span class="popup-smtitle">Object Type</span>
+<div >
+<table class="table-list">
+	<tr><td align="center">
+		L </td><td align="center">R
+	<!-- values MUST match constants below for both object and action type -->
+	</td></tr><tr><td>
+		<input checked type=radio id="ling-sel-box-l" name="action-sel-l" value=1></input>
+	</td><td>
+		<input         type=radio id="ling-sel-box-r" name="action-sel-r" value=1></input></td><td>Box
+	</td></tr><tr><td>
+		<input         type=radio id="ling-sel-circle-l" name="action-sel-l" value=7></input>
+	</td><td>
+		<input         type=radio id="ling-sel-circle-r" name="action-sel-r" value=7></input></td><td>Circle
+	</td></tr><tr><td>
+		<input         type=radio id="ling-sel-line-l" name="action-sel-l" value=2></input>
+	</td><td>
+		<input         type=radio id="ling-sel-line-r" name="action-sel-r" value=2></input</td><td>Line
+	</td></tr><tr><td>
+		<input         type=radio id="ling-sel-oval-l" name="action-sel-l" value=13></input>
+	</td><td>
+		<input         type=radio id="ling-sel-oval-r" name="action-sel-r" value=13></input></td><td>Oval
+	</td></tr><tr><td>
+		<input         type=radio id="ling-sel-scribble-l" name="action-sel-l" value=14></input>
+	</td><td>
+		<input         type=radio id="ling-sel-scribble-r" name="action-sel-r" value=14></input></td><td>Scribble
+	</td></tr><tr><td>
+		<input         type=radio id="ling-sel-text-l" name="action-sel-l" value=8></input>
+	</td><td>
+		<input         type=radio id="ling-sel-text-r" name="action-sel-r" value=8></input></td><td>Text
+	</td></tr>
+</table>
+</div>
+
+
+<br />
+<span class="popup-smtitle">Actions<span>
+<div >
+<table class="table-list">
+	<tr><td align="center">
+		L </td><td align="center">R
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="copy-radio-l" 	name="action-sel-l" value=6></input>
+	</td><td>
+		<input class="radio-r" type=radio id="copy-radio-r" 	name="action-sel-r" value=6></input></td><td>Copy
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="edit-radio-l" 	name="action-sel-l" value=9></input>
+	</td><td>
+		<input class="radio-r" type=radio id="edit-radio-r" 	name="action-sel-r" value=9></input></td><td>Edit
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="move-radio-l" 	name="action-sel-l" value=4></input>
+	</td><td>
+		<input class="radio-r" type=radio id="move-radio-r" 	name="action-sel-r" value=4></input></td><td>Move
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="recolour-radio-l" name="action-sel-l" value=5></input>
+	</td><td>
+		<input class="radio-r" type=radio id="recolour-radio-r" name="action-sel-r" value=5></input></td><td>Recolour
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="lower-radio-l" 	name="action-sel-l" value=11></input>
+	</td><td>
+		<input class="radio-r" type=radio id="lower-radio-r" 	name="action-sel-r" value=11></input></td><td>Lower
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="raise-radio-l" 	name="action-sel-l" value=10></input>
+	</td><td>
+		<input class="radio-r" type=radio id="raise-radio-r" 	name="action-sel-r" value=10></input></td><td>Raise
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="rotate-radio-l" 	name="action-sel-l" value=12></input>
+	</td><td>
+		<input class="radio-r" type=radio id="rotate-radio-r" 	name="action-sel-r" value=12></input></td><td>Rotate
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="erase-radio-l" 	name="action-sel-l" value=15></input>
+	</td><td>
+		<input checked class="radio-r" type=radio id="erase-radio-r" 	name="action-sel-r" value=15></input></td><td>Erase
+	</td></tr><tr><td>
+		<input class="radio-l" type=radio id="group-radio-l" 	name="action-sel-l" value=16></input>
+	</td><td>
+		<input class="radio-r" type=radio id="group-radio-r" 	name="action-sel-r" value=16></input></td><td>Group
+	</td></tr>
+</table>
+</div>
+
+<br />
+<span class="popup-smtitle">Default Text Size<span>
+<div class="list" >
+		<span style="font-family: sans-serif; font-size: 8px;">A</span>
+		<span style="padding-left: 55px; font-family: sans-serif; font-size: 18px;">A</span> <br />
+			<input id="def-tsize-slider" type="range" min="8" max="48" step="2" value="12" style="width: 60px" ><br />
+		<span id="def-tsize-value" style="font-family: sans-serif; font-size: 14px; padding-left: 25">12</span><br />
+		
+<!--
+	<input checked	type=radio id="smsize-radio" name="size_sel" value=12></input>12px<br />
+	<input 			type=radio id="mdsize-radio" name="size_sel" value=18></input>18<br />
+	<input 			type=radio id="lgsize-radio" name="size_sel" value=24></input>24px<br />
+	<br />
+-->
+</div>
+
+</div>
+</div>
+
+<!--  ============== config/connect popup ================= -->
+<div id="conf-popup"  class="popup" onmousedown='javascript: doctools.obj_mousedown( "conf-popup"  );' >
+<span class="popup-title">Connection Parameters</span>
+<div style="font-family: sans-serif;">
+<table border=0 style="color: #00ff00; padding: 10px" >
+<tr>
+	<td class="label">Repeater Addr:</td>
+	<td> 
+		<input class="text-input" id="host-conn" size="35" maxlength="1024" type="text" value="" />
+	</td>
+</tr>
+
+<tr>
+	<td class="label">Your Name:</td>
+	<td>
+		<input class="text-input" id="user-conn" size="35" maxlength="1024" type="text" value="" />
+	</td>
+</tr>
+
+<tr>
+	<td class="label">Scribble Board:</td>
+	<td>
+		<input class="text-input" id="group-conn" size="35" maxlength="1024" type="text" value="" />
+	</td>
+</tr>
+<tr><td colspan=2>
+	<button id="apply-conn" class="action-button">Apply Changes</button>
+	<button id="reconn-conn" class="action-button">Reconnect</button>
+	<button id="disconn-conn" class="action-button">Disconnect</button>
+	</td>
+</tr>
+
+<!--
+<tr><td>
+Raw scribble_r command:
+</td><td>
+<input id="raw-conn" size="35" maxlength="1024" type="text" value="" style="padding-left: 5px; background-color: black; opacity: 1; color: white; height: 30px;" />
+</td></tr>
+-->
+</table>
+</div>
+
+<span class="popup-title">Blackboard & User Lists </span>
+<div class="indented" style="font-family: sans-serif; ">
+<table width=90% border=0 style="color: #00ff00;" >
+<tr>
+	<td valign=top class="col-head">Users Connected</td>
+	<td valign=top class="col-head">Existing Boards</td>
+</td></tr>
+<tr>
+	<td>
+		<div style="border:solid 1px gray; height: 100;  overflow:auto">
+		<span id="gmembers-conn" style="font-size: 12; font-family: sans-serif; color: #00ff90">None observed yet</span>
+		</div>
+	</td>
+	<td>
+		<div style="border:solid 1px blue; height: 100px; overflow:auto">
+		<span id="groups-conn" style="font-size: 12; font-family: sans-serif; color: #0090ff">default</span>
+		<div>
+	</td>
+</tr>
+<tr><td>
+	<button id="update-conn" class="action-button">Refresh Lists</button>
+	</td>
+</tr>
+</table>
+</div>
+<br />
+
+<span class="popup-title">Blackboard Size </span>
+<div style="padding: 10px; font-family: sans-serif">
+	<span class="label" style="font-size: 14;">Smaller</span>
+		<input id="canvscale-conn" type="range" min="0" max="100" step="5" value="50" style="width: 150px" >
+	<span class="label" style="font-size:14">Larger</span>
+	<br />
+	<button id="rescale-conn" class="action-button">Scale to Window</button>
+</div>
+<br /> <br />
+
+
+
+<!-- <button id="sendraw-conn">Send Raw</button> -->
+<button id="cancel-conn" class="cancel-button">Close</button>
+</div>
+
+<!--  ============== colours popup ================= -->
+<div id="colour-popup"  class="popup" onmousedown='javascript: doctools.obj_mousedown( "colour-popup" );' >
+
+<div class="indent">
+<span class="popup-title">Colour Selection</span>
+
+<table border=0 style="color: #00ff00"><tr><td>
+<span style="font-size: 10px; font-family: sans-serif; padding-top: 5px; color: #00ff00"> Outline </span>
+</td><td> <br />
+</td><td> <span style="font-size: 10px; font-family: sans-serif; padding-top: 5px; color: #00ff00">Fill/Txt</span>
+</td></tr><tr><td align=right>
+
+<input checked type=radio id="outline-sel-cyan" name="olcolour" value="cyan"></input>
+</td><td> <span style="background-color: cyan; color: cyan">XXX</span>
+</td><td> <input checked type=radio id="fill-sel-cyan" name="fcolour" value="cyan"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-blue" name="olcolour" value="blue"></input>
+</td><td> <span style="background-color: #4040ff; color: #4040ff">XXX</span>
+</td><td> <input         type=radio id="fill-sel-blue" name="fcolour" value="blue"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-green" name="olcolour" value="#00ff00"></input>
+</td><td> <span style="background-color: #00ff00; color: #00ff00">XXX</span>
+</td><td> <input         type=radio id="fill-sel-green" name="fcolour" value="#00ff00"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-bluegreen" name="olcolour" value="#00ff90"></input>
+</td><td> <span style="background-color: #00ff90; color: #00ff90">XXX</span>
+</td><td> <input         type=radio id="fill-sel-bluegreen" name="fcolour" value="#00ff90"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-red" name="olcolour" value="red"></input>
+</td><td> <span style="background-color: red; color: red">XXX</span>
+</td><td> <input         type=radio id="fill-sel-red" name="fcolour" value="red"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-orange" name="olcolour" value="orange"></input>
+</td><td> <span style="background-color: orange; color: orange">XXX</span>
+</td><td> <input         type=radio id="fill-sel-orange" name="fcolour" value="orange"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-pink" name="olcolour" value="pink"></input>
+</td><td> <span style="background-color: pink; color: pink">XXX</span>
+</td><td> <input         type=radio id="fill-sel-pink" name="fcolour" value="pink"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-purple" name="olcolour" value="purple"></input>
+</td><td> <span style="background-color: purple; color: purple">XXX</span>
+</td><td> <input         type=radio id="fill-sel-purple" name="fcolour" value="purple"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-yellow" name="olcolour" value="yellow"></input>
+</td><td> <span style="background-color: yellow; color: yellow">XXX</span>
+</td><td> <input         type=radio id="fill-sel-yellow" name="fcolour" value="yellow"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-gray" name="olcolour" value="gray"></input>
+</td><td> <span style="background-color: gray; color: gray">XXX</span>
+</td><td> <input         type=radio id="fill-sel-gray" name="fcolour" value="gray"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-white" name="olcolour" value="white"></input>
+</td><td> <span style="background-color: white; color: white">XXX</span>
+</td><td> <input         type=radio id="fill-sel-white" name="fcolour" value="white"></input>
+</td></tr><tr><td align=right>
+
+<input         type=radio id="outline-sel-black" name="olcolour" value="black"></input>
+</td><td> <span style="background-color: black; color: black; border: solid 1px gray;">XXX</span>
+</td><td> <input         type=radio id="fill-sel-black" name="fcolour" value="black"></input>
+</table>
+
+<br />
+<span class="popup-title">Paint Style</span>
+<br />
+<div class="list">
+<input          type=radio id="fill-radio" name="fillx" value=1></input> Fill <br />
+<input checked type=radio id="outline-radio" name="fillx" value=2>Outline</input> <br />
+<input          type=radio id="fillout-radio" name="fillx" value=3>Fill & Outline</input> <br />
+</div>
+
+</div>
+</div>
+
+<!--  ============== end  popups ================= -->
+
+
+
+<!--  ============== top buttons and main canvas ================= -->
+<div id="main_div" style="background: #000010">
+	<button id="file-button" class="popup-button">File</button>
+	<button id="open-conn-button" class="popup-button">Configure</button>
+	<button id="open-ctl-button" class="popup-button">Control</button>
+	<button id="open-colour-button" class="popup-button">Colours</button>
+	<!-- 
+	-->
+	<button id="dump-button" class="action-button">Dump</button>
+	<button id="clear-button" class="action-button">Clear</button>
+
+	<span id="outline-state" style="height: 20px; border: solid 1px white; color: green" >XXX</span>
+	<span id="fill-state" style="padding-left: 5px; height: 20px; border: solid 1px white; color: white" >XX</span>
+	<span id="conn-state" style="color: gray; font-family: sans-serif; font-size: 12pt;">UNKNOWN</span>
+
+	<br />
+	<div id="slate-div" style="width: 95%; height: 95%" >
+			<canvas id="main-slate" height=600 width=1000 style="background-color: black; border: solid 1px teal;" tabindex="0"></canvas>
+			<br />
+			<a class="link" href="http://borneo.research.att.com:29081/test/strator/strator_doc.html">User's Manual</a>
+			<span style="padding-left:25px; ">
+			<a class="link" style="padding-bot:2px;" href="http://borneo.research.att.com:29081/test/strator/strator_mods.html">Notes, Known Bugs, Revisions, etc.</a>
+			</span>
+	</div>
+</div>
+
+
+
+<script type="text/javascript" >
+
+/* 
+	A simple 'in-line' function to show the splash and then create the driver. 
+	the act of creating the driver is all that is needed to start strator in 
+	motion since it is an event callback oriented programme. 
+
+	Paramters are port of the repeater (websocket) and the user name. If null 
+	is given for the user then we use what is in biscuits (cookies for now). 
+*/
+(function() {
+	strator.splash.paint(  );			
+	//change the next line if the scribble_r process is listening on a different port.
+	strator.driver.mk( "29436", null );		
+}())
+
+</script>
+</body>
+</html>
