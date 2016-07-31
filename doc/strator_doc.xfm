@@ -1,0 +1,768 @@
+
+.if false
+	Mnemonic:	strator_doc.xfm
+	Abstract:	Basic documentation for Strator.  
+				Generate HTML output with {X}fm which can be placed on the http server in the same
+				directory as strator.html. 
+					hfm strator_doc.xfm strator_doc.html
+	Date:		1 December 2012
+	Author:		E. Scott Daniels.
+
+.fi
+
+.** css style definitions for the page
+.cs file strator_doc.style
+
+.dv text_colour #00ff90
+.dv back_colour #000000
+.dv doc_title Strator User Reference
+
+.cd 1 6.5i i=0
+.st 12p
+.sf Times-roman
+.co #e0e0e0
+.in .5i
+.hn off
+.dv ital ^^<i^^>$1^^</i^^>
+.dv bold ^^<b^^>$1^^</b^^>
+
+.dv end_sect ``
+.if &hfm
+	.dv indent .cs start indent padding-left=2%
+	.dv uindent .cs end
+	.dv section .cs start section padding-left=10% ^: 
+	.dv h1 .cs end ^: .sp 1 .sp 1 .h1 $1 ^: ^&section
+	.dv h2 .cs end ^: .sp 1 .h2 $1 ^: ^&section
+	.dv h3  .h3 $1 ^: 
+.ei
+	.dv indent .ll -.5i .in +.5i
+	.dv uindent .in -.5i .ll +.5i 
+.fi
+.dv ditext Helvetica-bold
+
+.cs start dintro padding-left=4% width=600 font-size=16px font-family=Sans-serif color=green
+&indent
+
+.ta start b=0
+.ai
+<img src="strator_logo.png" />
+.fo
+.cl
+
+
+.cs start tabletext  padding-left=4% font-size=14px font-family=Sans-serif color=#ffffa0
+
+Strator is an HTML-5 JavaScript application which provides the user interface portion of a  multi-user, blackboard.  
+Users load Strator into their browser via a standard HTML document and then may draw on the blackboard, watch 
+while the board is updated by other users, or both. 
+As a user adds, or modifies the blackboard contents, the changes are transmitted to other users
+via a central, websockets based, repeater. 
+The repeater manages multiple logical blackboards allowing many different groups to scribble away,
+each in their own private Idaho. 
+.cs end
+.et
+
+&uindent
+.cs end
+
+.cs start d1 padding-left=2% width=720
+&indent
+
+
+.st 12p
+&h1(Overview)
+Strator allows scribblings to be created and placed onto 
+the blackboard and allows the existing scribblings to be manipulated.  
+Scribblings are one of several fixed shapes (box, circle, line, etc.) or a free-hand drawn shape. 
+Once on the board, a scribbling can be manipulated: moved, copied, recoloured, rotated,  etc.
+Any user connected to the repeater may make changes to the blackboard which will be seen by 
+all other users; there is no concept of a single pen, nor the need to pass or assign 'write control' 
+to a specific user. 
+Chalkboard contents can be saved onto local disk, and the board can be painted using a previously saved
+set of scribblings.  
+
+.sp 1
+.ai
+<img src="strator_screen1.png" />
+.fo
+.fg A Strator blackboard scaled to allow the control and colour pop-up menus to be moved to the side. 
+.sp
+
+&h2(Compatability)
+Strator should work with any HTML-5 capable browser which includes Opera, Chrome, Firefox and Safari.
+In theory, Internet Explorer version 9 should also be capable of running Strator, but testing with that 
+browser is beyond scope at the moment. 
+The only issues that seem to be browswer related are with Opera and are described later in this 
+document. 
+
+&h3(iThings)
+Strator has been briefly tested using an iPod-Touch and while it is cumbersome to draw using the small 
+screen, the blackboard is scaled correctly and thus it is assumed that iPhones, and iPads could be used
+to at least remotely see the blackboard if that is the only device available to a user. It is also assumed that the 
+iPad's larger screen format might also make it practical to participate and draw on the blackboard. 
+
+
+&h2(What It's Not)
+Strator is &bold(not) designed to be a full fledged drawing tool like Xfig and others. 
+It &bold(is) designed to be a 'back of the envelope' or conference room brainstorming, sketch environment
+which allows multiple remote participants to view and write on the blackboard.
+Thus there are some noticeable features that are missing and might never be added.  
+These include resizing and/or control point oriented manipulation, polygones, multiple point lines, Bezier curves, etc.  
+
+&h2(What Might Be)
+There are some features that are missing, that probably should be added in the future.  These 
+include: grouping of scribblings for easy moving/manipulation, exporting the image as  PostScript so 
+that the brainstorming session can be added to more formal project design documentation or included in 
+meeting minutes. 
+
+&h2(Network Usage)
+Strator sends only changes to the repeater for broadcast to other users who have subscribed to the 
+same blackboard. 
+Changes are generally an update of a scribbling's definition (placement, colour, etc.) and for the most 
+part the messages are less than 256 bytes each.  
+For the user that is moving or creating a scribbling, the motion will appear in real-time in their 
+browser window, but to the other users the scribbling will appear to jump as its location 
+is finalised,  or will appear to "pop in" when created; a user who is not creating/moving a scribbling does not 
+see any animation in order to keep the network traffic to a minimum and to reduce the workload of the repeater. 
+
+&h2(Mouse Interface)
+Most scribbling actions are comprised of the selection of two points on the blackboard; 
+for example the creation of a box requires the entry of two diagonal corners of the box.
+There are two primary methods used to enter a set of points. 
+One method is to click and hold the mouse button while moving the mouse pointer to the second point
+where the button is released completing the task.
+The second method is to click and release the mouse button on the first point, then to move the mouse 
+pointer to the second point where the mouse button is again clicked and released. 
+Strator implements both of these methods when creating two point scribblings (box, line, circle, etc.) and 
+when moving or copying existing scribblings on the blackboard. 
+.sp
+Throughout the remainder of this document, only the first (click, hold, drag and release) method will be 
+used when describing scribbling creation and movement, but in most cases either of these methods apply.
+The one exception is that when moving pop-up windows only the click/hold/drag method is available. 
+.sp
+Supporting both click methods for creating and moving scribblings should allow Strator to support 
+all methods of pointer related input: touch screen, traditional mouse, and Wacom-like pen/stylus tablets. 
+For touch screen interfaces, where dragging isn't really done, the rubberbanding and/or motion of the 
+scribbling during a copy or move operation will probably not be realised. 
+This doesn't render the touch screen useless when it comes to drawing on a blackboard, but might make 
+the experience less than satisfying. 
+
+&h3(Mouse Buttons)
+For systems that have mice with two, or three, buttons, Strator provides the ability to assign an 
+action or scribbling type to both the right and left button. 
+Thus, in the &ital(Control) pop-up menu, there is a left (L) and right (R) set of radio buttons
+for both object type (scribbling), and actions. 
+The action/type associated with the left button is activated when the left button is pressed or clicked
+when the mouse pointer is positioned on the blackboard. 
+Similarly, the action/type associated with the right button is applied when the right button is used
+in the blackboard. 
+
+.sp
+The right button generally causes a browser context menu to be displayed which allows the user to 
+view the HTML source, save images, etc. 
+This functionality can be realised by clicking with the right mouse button while the pointer is not 
+placed on the blackboard. 
+Further, there might be other borowser settings and/or plug-ins that disable or prevent the right 
+button function in Strator (we cannot control everything!). 
+ 
+
+
+
+&h1(Menus)
+Pop-up menus are used to define and control drawing on the blackboard as well as to manage the connection
+with the repeater. 
+Most pop-up menus are opened, and closed, using the orange(ish) buttons at the top of the page. 
+Some  pop-up windows are displayed as a result of scribbling edit actions.
+Most of the pop-up menus that are opened using the buttons along the top of the blackboard may be left open (if desired)
+as the user draws and thus can be moved within the browser window. 
+Edit related pop-up windows are generally closed automatically when the user has finished. 
+
+.sp
+
+.bx start
+.ai
+<img src="strator_popup_circ.png" />
+<img src="strator_popup_edit.png" />
+.fo
+.sp
+.bx end
+.fg Various Strator pop-up menus.
+.sp
+
+
+These buttons at the top of the page show/hide the four main pop-up windows. 
+.sp
+&indent
+.bd 1i &ditext
+.di File : Opens a pop-up window that allows the current contents of the blackboard to a local file or to 
+load a previously saved blackboard to the current. 
+.sp
+
+.di Connection : Allows for the management of the connection between the browser and the repeater. 
+.sp
+
+.di Scribbling Control : Provides a list of scribbling objects that may be created as well as a list of actions
+that can be applied to the current contents of the blackboard.
+.sp
+.di Colours : The colour pop-up is used to select both the outline and fill colours used when new solid scribblings
+are created. 
+.sp
+.ed
+&uindent
+.sp
+
+&h2(Pop-up Menu Movement)
+It may be advantageous to leave one or more of the control pop-up windows to remain active and thus in most cases
+they do not automatically hide once a selection has been made. 
+To make it easier for active menus to coexist with the blackboard, they can be moved within the browswer window by 
+placing the mouse pointer on the top (thicker) window boarder, pressing the select button (left) on the mouse, 
+and dragging the pointer while holding the button down. 
+Pop-up menus that have been moved, and then closed, will reappear in the last visible location the next time 
+that they are opened.  
+
+&h2(Button Colours)
+Some pop-up menus are designed to stay visible even after clicking one of their action buttons.  
+To help visually determine the behaviour of a button, the buttons are colour coded to indicate how they will 
+affect the state of the pop-up when clicked.
+
+.sp
+&indent
+.bd 1i 
+.di Orange : These buttons create a pop-up menu or hide the corresponding menu if it is visible. When 
+	they are used to hide the window it is the same as pressing a cancel button: no action is taken. 
+.sp
+.di Red : These buttons close the window without taking any action or making any changes. Generally they
+	are labeled as &ital(Cancel) or &ital(Hide.)
+.sp
+.di Green : The green buttons take action based on the changes made in the pop-up and cause the window to 
+	be closed.  
+.sp
+.di Light Blue : These are action buttons that cause some action to be taken based on the current contents of 
+	the pop-up menu, but leave the menu open.  An example is the &ital(Apply) button in the connection pop-up 
+	window. The user name, group, or host changes are applied, and the results (a new list of groups and or 
+	users) is presented at the bottom of the pop-up.
+
+.ed
+&uindent
+.sp
+
+&h1(Drawing On The Chalkboard)
+
+To draw on the blackboard a scribbling type must be selected from the scribbling control menu (box is the default
+selected when the page is loaded into the browser). 
+Once the desired scribling type has been selected, position the mouse pointer to the desired point on the blackboard
+and press the left mouse button. 
+Move the mouse, with the button pressed, to the desired second point on the blackboard and release the button. 
+While the mouse is being moved, a rubberbanding object should be visible providing visual feedback which indicates 
+the approximate colour and placement of the object being created.  
+When the mouse button is released, the final object is placed onto the blackboard and the change is broadcast to 
+all users who are attached to the blackboard. 
+
+
+.sp
+The scribbling types that are currently available include:
+
+.sp
+&indent
+.bl &lic1
+	.li Box (a square or rectangle)
+	.li Line
+	.li Circle
+	.li Oval 
+	.li Text
+	.li Free-hand line.
+.el
+&uindent
+.sp
+
+It may be impossible to create a free-hand drawn line on a touch screen device; it has not been attempted
+at the time this documentation was written. 
+
+.sp
+
+&h2(Colour and Fill Style)
+The outline and fill colours applied to a scribbling when created are the default colours that have been 
+selected via the colour pop-up menu.   
+For solid scribblings (circles, boxes, etc.) the fill style (filled, outline only, filled with outline) is also
+applied based on the settings available in the colour pop-up menu. 
+.sp
+To change the default colours, open the colour pop-up menu by clicking on the orange &ital(Colour) button at
+the top of the page.  
+The main portion of the menu contains two columns of radio buttons: the left column is used to select the 
+outline colour and the right column is used to select the fill and text colour. 
+At the bottom of the menu, the user may select the default fill and/or outline style.  
+
+.sp
+Once the user has made changes to the colour selection via this menu, all subsequent scribblings will be 
+created with the colour settings. 
+In addition, the &ital(Recolour) action will use these settings when active. 
+
+.sp
+Once a scribbling has been added to the drawing, it's colour (both outline and fill) can be changed by selecting 
+the &ital(Recolour) action from the scribbling control menu, and then clicking on the scribbling(s) that is/are 
+desired to be painted in a different colour. 
+
+&h2(Creating Text)
+The text scribling is the only scribbling that does not employ a click and drag method when adding it to the blackboard.
+When &ital(Text) is selected in the scribbling control menu, a single click on the blackboard 
+marks the anchor spot and then causes a text edit menu to be opened. 
+The menu provides a text entry field that is used to supply the text that will be then written on the blackboard, 
+as well as providing the ability to change the default text size and/or the 
+rotation of the text. 
+
+.sp
+The text entry pop-up executes in a "quick accept" mode which accepts the text and closes the window 
+when the enter key is pressed while the cursor is in the text input area. 
+If the rotation or font size is changed, the user must apply the values by clicking on the green &ital(Save) button. 
+
+&h2(Actions)
+Once scribblings are placed onto the blackboard they may be manipulated by first selecting the desired action from 
+the scribbling control menu, and then clicking an applicable scribbling on the blackboard. 
+The actions available from the menu are:
+
+.sp
+&indent
+.bl &lic1
+	.li Copy
+	.li Move 
+	.li Edit 
+	.li Change the colour (outline and/or fill)
+	.li Raise and lower the shape relative to the others
+	.li Rotate 
+	.li Erase [was Delete]
+.el
+&uindent
+.sp
+
+&h3(Mouse pointer clues)
+When an action is selected from the control menu the normal mouse pointer will change to a cross-hair (+) 
+when it is positioned on a scribbling to which the action can be applied.  
+Where and when the pointer changes depends on the scribbling type.  
+The pointer will change when inside of a circle, oval or box, and only when position fairly near
+a line or free-hand line.  
+.sp
+
+Once the mouse pointer changes, pressing and releasing the left mouse button will apply the action 
+to the scribbling if the action is single click oriented (e.g. Recolour). 
+If the action requires draging the scribbling (copy and move), then clicking the left button and holding
+it while moving the pointer to the new location where the button is then released will affect the 
+change to the blackboard.  
+
+.sp
+With the ability to assign an action to the right mouse button, there might be some confusion as to 
+which action is represented by the clue when two actions are assigned to mouse buttons.
+Pointer clues are always given for the left button and never for the right; if the pointer 
+changes, the clue is associated with the left button always.  
+
+
+&h3(Copy a scribbling)
+When the &ital(Copy) scribbling is chosen, clicking on any existing scribbling will cause 
+a duplicate to be created and allow the user to position the new scribbling to the desired 
+part of the blackboard.  
+
+
+&h3(Moving a scribbling)
+Selecting the &ital(Move) action allows a scribbling to be repositioned on the blackboard. 
+With the mouse pointer positioned on the desired scribbling, click and hold the left mouse button.
+The scribbling can be repositioned and will be left at the point where the mouse button is released. 
+
+&h3(Rotaion)
+A scribbling can be rotated by selecting the &ital(Rotate) action and clicking on the object. 
+The point that is used for rotation depends on the type:
+
+.sp
+&indent
+.bd 1i &ditext
+.di oval : Rotated around its centre. 
+.di box : Rotated around the upper left corner of the box.
+.di line : Rotated around the first point used  to create the line
+.di Text : Rotated around the lower left corner of the bounding box. 
+.ed 
+&uindent
+.sp
+Obviously, it makes no sense to allow a circle to be rotated, so the mouse pointer should not change
+when &ital(Rotate) is selected and hovered over a circle.  
+At this point, free-hand scribbles cannot be rotated; this might be allowed in future, but that would be a low priority change.
+
+.sp
+Rotation also uses keys on the keyboard to control amount and direction that a scribbling is rotated. 
+By default, the scribbling is rotated 10 degrees anticlockwise. 
+If the shift key is pressed while the mouse button is clicked, the rotation is clockwise. 
+Holding the control key when clicking the mouse button causes the rotation to be 45 degrees (control-shift doesn't
+do the expected opposite direction rotation!). 
+
+.sp
+&h3(Raising and Lowering)
+Scribblings are placed on the blackboard in a back to front order -- meaning that more recently drawn things
+will overlay older scribblings. 
+Using the &ital(Raise) and &ital(Lower) actions, a scribbling's position on the board can be changed. 
+Clicking a scribbling causes it's relative position to be changed (up or down) by one position.
+This sometimes causes no visual change on the blackboard because an overlapping object isn't immediately 
+adjacent to the scribbling being raised or lowered; multiple clicks may be needed. 
+
+.sp
+Holding the shift key down when clicking on an scribbling causes it to be moved all the way up or 
+down on the blackboard.  
+This certainly has an immediate visual effect, and is often what is desired.  
+
+
+
+.sp
+&h3(Erasing)
+A scribbling can be erased by chosing the &ital(Erase) action from the scribbling control menu. 
+Once erasing is enabled the mouse pointer will change into a cross-hair when positioned on a 
+scribbling that can be deleted.  
+A click and release of the left mouse button will delete the scribbling under the pointer. 
+If the mouse button is held down, and the mouse pointer is moved round the blackboard, all 
+scribblings that the pointer touches will also be erased.  
+This is a "fast erase" method that eliminates having to precicely select each scribbling that 
+is to be rubbed out.  [This function was formarly known as &ital(Delete,) and only worked in 
+single click mode.) 
+
+
+.sp
+&h3(Editing a scribbling)
+When the &ital(Edit) action is selected, several properties of an existing scribbling can be changed. 
+Clicking on the desired scribbling causes an edit pop-up menu to be displayed. 
+The contents of the menu are dependent on the scribbling type and may contain any of the following
+fields which can be modified:
+
+.sp
+&indent
+.bd 1i 
+.di Circle : When a circle is edited the user has the opportunity to adjust the beginning and ending
+	points of the circle allowing an arc to be painted.  The beginning and ending points are specified
+	in degrees with "East" being 0 or 360.  
+.sp
+
+.di Edit Text : When a text scribbling is selected a text input box appears in the pop-up menu allowing 
+	the contents of the scribbling to be changed. 
+
+.sp
+.di Font size : Allows the font size of a text scribbling to be changed. Sizes can be thought of in terms
+	of pixles or points, however as the HTML-5 canvas object is scaled it is best to assume that the font
+	size values are just numbers with larger numbers generating larger text.  The default values on the 
+	main control menu allow for 16 (small), 20 (medium) and 24 (large) "px" text which seem to be readable 
+	on most devices. 
+
+
+.sp
+.di Opacity : This is a slider that allows the scribbling's opaqueness to be adjusted on a percentage
+	bases. Zero (0) percent indicates that the scribbling is completely transparent, while a setting of 
+	100% equates to the scribbling being 100% opaque.  Opacity applies only to the fill colour of a 
+	scribbling. 
+
+.sp
+.di Paint Style : One of three possible choices which affect how solids (circles, ovals, boxes) are 
+	painted. &ital(Outline) causes only the scribbling's outline to be painted.  &ital(Fill) causes the scribble
+	to be painted as a solid. Selecting &ital(Fill + Outline) causes the scribbling to be painted with 
+	both filling and outlining enabled. 
+
+.sp
+.di Rotation : Allows the user to specify the number of degrees that the scribbling should be rotated.
+	Thinking in terms of a cartesian plane, a rotaion of zero (0) equates to the X-axis. 
+	Positive values are angles above the X-axis (moving anticlockwise) while negative degrees 
+	rotate the scribbling below (clockwise) the X-axis. 	
+.sp
+.ed
+&uindent
+.sp
+
+&h2(Grouping Scribblings)
+The &ital(Group) action allows multiple scribblings to be associated and acted upon as though they were
+a single entity on the blackboard. 
+To select a group, click the &ital(Group) radio button from the control menu, and then use the 
+click and drag technique on the blackboard to create a &ital(bounding box.) 
+When the mouse button is released the group selection area will be represented as a shaded rectangle with 
+&ital(frame edges) in the upper left and lower right corners.  
+All scribblings which are completely enclosed in the box are marked as a part of the group. 
+
+.sp
+Once a group is selected, several actions can be applied to all of the scribblings:
+.sp
+&indent
+.bl 
+.li Recolour all scribblings
+.li Move scribblings
+.li Copy all scribblings
+.el
+&uindent
+.sp
+
+&h3(Group Behaviour)
+Because Strator is a shared chalkboard, and because Strator is &bold(not) intended to be a full fledged
+drawing editor, there are some behaviours of grouped scribblings that might seem somewhat odd,
+unexpected, or just aren't supported.  These include:
+.sp
+&indent
+.bl 
+.li Groups are &bold(not) shared with other users.  Other users will see the changes applied to the 
+scribblings in the group, but the group bounding box will not appear on any other blackboard.
+.sp
+.li Groups cannot be "nested," and unpredictable behavour can be expected if a scribbling is included
+in two groups. 
+.sp
+.li If a scribbling included in a group is moved by another user, the scribbling remains a part of the 
+group, even though it might not be completely contained in the visual group enclosure. The position of 
+a scribbling relative to the group bounding box is important only at the time the group is established. 
+.sp
+.li There is no means for adding or removing single scribblings to/from an existing group. There is also
+no other means for slecting a group of scribblings that do not fall completely within an area defined with 
+a simple rectangle. 
+.sp 
+.li Groups are not saved if the blackboard contents are saved to a file. 
+.sp
+.li The group bounding box is a scribbling on the chalkboard and can be raised or lowered. This allows 
+for some options with regard to positioning o members of a group individually without destroying the group.
+.el
+&uindent
+.sp
+
+&h3(Releasing a Group)
+The &ital(Erase) action causes the group to be released (it does not cause all members within the group to 
+be erased). 
+Select the &ital(Erase) action, and then click with the mouse pointer inside of the group bounding box
+to un-group the scribblings. 
+If the bounding box has been lowered, care must be taken to not click on an active scribbling. 
+
+
+
+&h2(Erasing Everything)
+The &ital(Clear) button at the top of the page causes all of the blackboard's contents to be 
+erased.  
+This action is permanant (there is no undo function) and affects all other subscribed users
+without warning. Might always be wise to save before clearing!
+
+
+
+
+&h1(Managing The Configuation)
+The &ital(Config) button at the top of the page opens a pop-up menu that allows various configuration 
+settings to be viewd and possibly modified. 
+These settings include information about the current connection (host, port username and blackboard), 
+the list of available blackboards, the list of users also subscribed to the current blaackboard, 
+and blackboard sizing control. 
+.sp
+
+.bx start
+.ai
+<img src="strator_popup_conn.png" />
+.fo
+.bx end
+.fg The Configuration pop-up menu.
+.sp
+
+
+&h2(The Connection)
+As the page is loaded a TCP/IP (websocket) connection is established with a default Strator router. 
+If no connection is established, or the connection becomes lost, the word "DISCONNECTED" is displayed
+above the blackboard.  
+The colour of the word indicates the reason: red indicates that the connection was unexpectedly broken,
+while purple indicates that the &ital(Disconnect) button was pressed in this pop-up menu in order to 
+manually break the connection. 
+When a connection exists, the name of the subscribed blackboard (e.g. default) is displayed in green. 
+
+
+.sp
+When a new connection is established, either as the page is loaded, or via action caused by this pop-up menu, 
+Strator sends an immediate request for a refresh and thus should update the blackboard as soon as the connection is established. 
+When a new blackboard is created, or the user is the only one subscribed to a blackboard, the 
+drawing area will be blank or will show the Stator logo. 
+
+&h3(Repeater Address)
+The first field displayed in the pop-up is the address (proto:hostname:port) of the repeater. 
+This can be changed to direct the TCP session to a different Strator repeater. 
+When the value in this field is changed, and the &ital(Apply changes) button is clicked, the current 
+session will be disconnected and a connection will be made to the indicated host:port combination. 
+
+.sp
+The &lit(proto) portion of the address is either &lit(ws) or &lit(wss) and is required.  If &lit(ws) 
+is supplied, the repeater connection attempt is made using unencrypted communications. When &lit(wss) 
+is used, the repeater is expected to support either TLS or SSL and communications between the browswer and 
+the repeater will be encrypted.  
+The strator repeater supports only one form of communication at a time, to ensure that when encryption is 
+used the information sent and received to all browswers which are assoicated with a blackboard are encrypted,
+and as a result attempting to connect to a repeater using the wrong protocol will result in a connection 
+failure. 
+
+&h3(Your Name)
+The &ital(Your Name) field indicates the name that Strator sends to the repeater to identify your connection. 
+Primarly this is used so that others who have subscribed to the same blackboard can see who the other users
+are.  
+It is not required that the name be changed from the random value assigned (nobody.xxxx), but as an aide to 
+other users it is apprecaited. 
+
+.sp
+&h3(Scribble Board)
+This is the blackboard that is currently subscribed to. 
+Any drawing done in the browser will be seen by all users who have also subscribed to the same blackboard. 
+Entering any of the known scribble boards listed at the bottom of the menu, and clicking the &ital(Apply changes)
+button, will cause the session to be associated with the named board and the current contents of the 
+blackboard, if any, will be painted into the drawing area contained within the browser window. 
+If the board entered does not already exist, it will be created. 
+
+&h3(Connection Buttons) 
+Several buttons are placed just beneith the connection information and cause changed information to be 
+acted upon. 
+
+.sp
+&indent
+.bd 1i &ditext
+.di Apply Changes : This causes any changes made to the text entry fields to be made.  If a new host/port is 
+added the current connection is dropped and a new connection is established before updating either the 
+scribble board or your name.  
+If the host/port is unchanged, then the other information is updated with the repeater without affecting the connection. 
+
+.sp
+.di Reconnect : This forces the connection to be reestablished.  The current host/port is used and any changes to the 
+host information in the text fields are likely ignored. 
+
+.sp
+.di Disconnect : This allows the user to disconnect from the repeater. Any changes made to the blackboard will &bold(not) 
+be sent to any other users, and any changes made by users still connected to the repeater will not be seen locally. 
+If a subsequent reconnection is made, local changes will be lost and the blackboard will be updated with the current 
+state based on the users that were attached to the repeater at the time of reconnection. 
+While disconnected it &bold(is) possible to save the current state of the blackboard, so that any drawings done "off-line" 
+can be preserved. 
+.ed
+&uindent
+.sp
+
+&h2(The Lists) 
+This pop-up menu contains two lists: the users who are also subscribed to the blackboard, and a list of 
+blackboards that the repeater currently knows about. 
+This list should be updated automatically, however there is a &ital(Refresh Lists) button which forces 
+Strator to ask for an update. 
+
+&h2(Blackboard Size Slider)
+The size of the blackboard witin the browser window can be changed interactively using the slider. 
+Moving the "knob" to the left causes the blackboard to be reduced in size while moving it to the 
+right causes the size to be increased. 
+The ratio of the blackboard's height and width are always constant and thus it might be impossible to 
+completely fill the browser window if the window height is greater than about half of the width (the ratio
+is 1.8:1).  
+.sp
+In addition to the slider is a &ital(Fit To Window) button which causes the blackboard to be scaled such that 
+it is it's maximum size while remaining completely visible in the current browser window.  
+.sp 
+
+&h2(The Cancel Button)
+This button causes this pop-up to be closed without taking any action with respect to any fields that were 
+changed.  
+If the &ital(Config) button at the top of the page is clicked while this menu is visible, the effect is the same. 
+.sp
+
+
+&h1(Loading and Saving )
+The &ital(File) button at the top of the page opens a pop-up menu that allows the current blackboard to be 
+saved to a local file, or allows the contents of a scribble file to be loaded and painted onto the 
+current blackboard. 
+The interface to local storage is kludgey at best; mostly because of the paranoid nature (rightly so) of web browsing. 
+
+&h2(Loading Saved Scribblings)
+To load scribblings from a local file, click the &ital(Choose) button (the style and label of the button varies between 
+browsers).  
+When pressed, a navigation interface is presented by the browser and should be the same interface that is used when files are
+uploaded via the browser. 
+Select the file, and click OK (open or some such) at which point most browswers will show the filename in the pop-up window. 
+Once the file is selected, click the green &ital(Load) button and the file should be read and the scribblings displayed (and broadcast). 
+
+&h2(Saving A File)
+To save a file Strator must make the browser think it's downloading information from some remote point.  
+The result is that the browser's down load interface is invoked which will prompt the user to save the file. 
+The target output file should be selected and the OK or Save (what ever is presented by the browser) button  should be clicked
+which will cause the contentes of the blackboard contents to be saved. 
+Because the browser is treating this as a file download, it will likely indicate that the download is in progress and will report 
+when it is finished (annoying, but there seems no way to work round this). 
+
+&h2(Storage Location)
+Scribbling files are saved to the local disk rather than using any browser inbuilt &ital(local storage) mechanism.  
+This allows the user direct, and fairly easy, access to the Strator data outside of the browser interface; if 
+the brower's mechanism were used this access might not be possible. 
+Using the browser's storage facility might prove to be a smoother interface, but it might also be subject to browser "clear data"
+functions which could cause the deletion of Strator data without the user realising that it was being removed along with 
+the expected purge targets. 
+
+&h1(Bugs - Not In My Code!)
+There are always bugs. 
+Strator has been a project oriented towards learning JavaScript with an intended side effect of having a useful application 
+when it is all said and done. 
+To this end, the JavaScript may not be a set of model code (I hate camelCase and so my code uses a more readable 
+function and variable naming convention using under_bars), but it works, and seems efficient. 
+The repeater is also an experiment as the websocket interface is built from scratch rather than using any available library. 
+The repeater's core TCP/IP code is based on ancient (1994ish) code used in many other projects, there lies potential for 
+websocket interface bugs in the repeater. 
+Bugs in Strator and the repater are documented elsewhere; issues documented here seem to be browser issues and not issues
+with my code. 
+
+&h2(Browser Issues)
+HTML-5 seems to be supported by most modern browswers (Opera, Safari, Chrome, Firefox) and Strator has been tested under the 
+ones I've had access to.  
+There is &bold(not) any browser specific code in Strator; we expect that "standard code" should work in all browsers and thus
+there are no plans to tailor any part of Strator to work round the in abilities of any browser.  To that end, use Chrome or 
+Firefox. 
+.sp
+There are a few issues that seem to be browser bugs rather than Strator bugs; these are described below. 
+
+&h3(Oval Rotation) 
+Rotaing an oval works well in both Firefox and Chrome, but Opera seems to get this wrong.  Rather than being rotated, the 
+size of the oval is changed instead of rotating the scribbling.  
+
+&h3(Canvas Scaling)
+The size of the HTML-5 canvas element is scaled by Strator as the page loads. The scale (1.8:1) is based on the size of the 
+browser window at the time the page is loaded.  This seems to work well in all browsers including the iPod-Touch browser. 
+Further, if the browser window is reduced, and the &ital(ReScale) button in the &ital(Connection) pop-up menu is used, the 
+canvas object is scaled properly with regard to the altered window size.  
+The bug, again with Opera, occurs when the browser window is increased and the &ital(ReScale) button is pressed. In this 
+situation the window size information isn't communicated correctly and the JavaScript only increases the size of the canvas
+object by a small amount.  
+When this is attempted in both Chrome and Firefox the expected result (a correctly scaled canvas object) is achieved, so the 
+assumption is that this is an Opera bug. 
+
+&h3(Pointer Slip)
+Pop-up windows are managed as document divisions and when moving them it seems that if pointer motion is too rapid, the pointer
+can 'slip off' of the menu. 
+When this happens, the pointer continues leaving the menu behind and what falls under the pointer is selected/shaded. 
+To recover from this, the pointer should be returned to the menu, which should then be moveable again, and the button released. 
+This seems to be a problem in all browsers and thus might be preventable in the JavaScript. 
+For now, move the mouse slowly when moving pop-up menus. 
+
+&h1(Enhancements and Extensions)
+The following is  a list of enhancements that probably should be made to either Strator or the repeater: 
+
+.sp
+&indent
+.bl &lic1
+.li The repeater should support a blackboard password allowing only authorised users to subscribe to a protected blackboard. 
+.li Groups of scribblings should be selectable and group actions (move, copy etc.) should be available.
+.li Exporting of the drawing in a PostScript form for inlcusion in meeting minutes or the like. 
+.li Automatic generation of arrows at the end(s) of lines. 
+.li Server side save of the drawing which would allow any group member to reload it. 
+.li While a fair amount of work, the repeater should support HTTPs. 
+.el
+&uindent
+.sp
+
+&h2(Other Uses)
+Scribblings are managed with a name and as such it is quite possible to use Strator as a "war room" presentation
+application. 
+Assuming a 'fixed view' containing scribblings, an external source would feed the repeater with state changes using
+the scribbling name that would be reflected on the blackboard. 
+Scribblings could be extended to include graphs and/or meters and thus provide a browser based dashboard similar to 
+the Ruby/TK based application I wrote (screen shot below) to monitor home systems (upper left) current weather and trends (bottom left) 
+and web-cam or radar images (right).
+.sp
+
+.ai 
+<img src=heads_up_sample.png />
+.fo
+
+.** -----------------------------------------------------------
+&uindent
+.cs end
+.ln
+.gv Date
+.gv version
+Original: 29 December 2012
+.br
+Revised: &_date using &_ver
