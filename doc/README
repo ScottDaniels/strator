@@ -2,3 +2,6 @@ The documentation for Strator is written using {X}fm which is a text formatting 
 to IBM's DCF script, LaTex, or [t]roff.  It is availble to build from github/scottdaniels/xfm.
 
 
+The generated html file should be placed into the same directory that the main strator.html file
+is located (from an http server perspective).  There is a link in the main html to the doc which
+will be broken if it is not.
