@@ -68,6 +68,26 @@ strator.base_ling = {
 		return no;
 	},
 
+	/*
+		there isn't a generic paint function; each ling that extends this must supply one.
+	*/
+	paint:  function( gc )
+	{
+		return;
+	},
+
+	/*
+		generate postscript to render this scribbling. adjustments enable encapsulated ps which
+		is based at 0,0.  We subtract  our y value(s) from adjustment value to normalise to 0,0
+		AND to flip the coordinate system allowing 0,0 to be lower left rather than upper left. 
+		Adjustments also allow driver to set padding etc. 
+
+		must be supplied by all lings -- like paint, there isn't a generic for most
+	*/
+	to_ps: 	function( xadj, yadj, colour_set )
+	{
+		return "% ***ERROR*** scribbling didn't supply a to_ps method! " + this.type;
+	},
 
 	to_str: 	function( )
 	{
@@ -212,16 +232,24 @@ strator.base_ling = {
 		this.bb = null;
 	},
 
-	fxate:  function( )			/* some types need a final adjustment after being created -- e.g. sets proper upper left x,y for box */
+	fixate:  function( )			/* some types need a final adjustment after being created -- e.g. sets proper upper left x,y for box */
 	{
 		this.x2 = this.y2 = null;		/* basic function just unsets x/y2 to turn off rubberband oriented paint options in some lings */
 		return;
 	},
 
-	has_point:  function( x, y )			/* basic bounding box as a default */
+	get_bb: function()						/* give caller access to our bounding box */
 	{
 		if( this.bb == null )
 			this.bb = strator.bounding_box.mk( this.x, this.y, this.x + this.w, this.y + this.h )
+
+		return this.bb;
+	},
+
+	has_point:  function( x, y )			/* basic bounding box as a default */
+	{
+		if( this.bb == null )
+			this.get_bb();
 
 		return this.bb.inside( x, y, this.rot, this.x, this.y );
 	},
@@ -229,14 +257,6 @@ strator.base_ling = {
 	set_changed: function( v )
 	{
 		this.changed = this.can_change ? v : false;
-	},
-
-	/*
-		there isn't a generic paint function; each ling that extends this must supply one.
-	*/
-	paint:  function( gc )
-	{
-		return;
 	},
 	
 	/*
@@ -329,8 +349,51 @@ strator.box = {
 		no.spec = this.spec;
 		no.paint = this.paint;			
 		no.fixate = this.fixate;
+		no.to_ps = this.to_ps;
 
 		return no;
+	},
+
+	to_ps: function( xadj, yadj, colour_set )
+	{
+		var s = "newpath ";
+
+		if( this.rot != 0 )			/* translate origin to x,y of the rotaion point (llx,lly) rotate, then base drawing off of 0,0 */
+		{
+			s += "gsave\n" 
+			s += (this.x - xadj) + " " + (yadj - this.y) + " translate\n";
+			s += this.rot  + " rotate\n";
+			s += "0 0 moveto\n";
+		}
+		else
+		{
+			s += (this.x - xadj) + " " + (yadj - this.y) + " moveto\n";
+		}
+
+		s += this.w + " 0 rlineto\n";
+		s += "0 " + (-this.h) +  " rlineto\n";
+		s += (-this.w) + " 0 rlineto\n";
+		s += "closepath\n"; 
+
+		if( this.fill )
+		{
+			s += colour_set.name2rgbstr( this.colour ) + " setrgbcolor\n";
+			if( this.outline )		/* need to save path so we can outline */
+				s += "gsave fill grestore\n";
+			else
+				s += "fill\n";
+		}
+
+		if( this.outline )
+		{
+			s += colour_set.name2rgbstr( this.olcolour ) + " setrgbcolor\n";
+			s += "stroke\n";
+		}
+
+		if( this.rot != 0 )
+			s += "grestore\n"; 
+
+		return s;
 	},
 
 	paint: function( gc )
@@ -431,13 +494,39 @@ strator.text = {
 		no.spec = this.spec;
 		no.add = this.add;
 		no.has_point = this.has_point;
+		no.get_bb = this.get_bb;
 		no.paint = this.paint;
+		no.to_ps = this.to_ps;
 		return no;
 	},
 
 	add: function( what )		/* add a string to the end of the current text */
 	{
 		this.text += what;
+	},
+
+	to_ps: function( xadj, yadj, colour_set )
+	{
+		var s = "newpath ";
+
+		if( this.rot != 0 )			/* translate origin to x,y of the rotaion point (llx,lly) rotate, then base drawing off of 0,0 */
+		{
+			s += "gsave\n" 
+			s += (this.x - xadj) + " " + (yadj - this.y) + " translate\n";
+			s += this.rot  + " rotate\n";
+			s += "0 0 moveto\n";
+		}
+		else
+			s += (this.x - xadj) + " " + (yadj - this.y) + " moveto\n";
+
+		s += colour_set.name2rgbstr( this.colour ) + " setrgbcolor\n";
+		s += "(Helvetica) findfont " + this.size + " scalefont setfont\n"; 
+		s += "(" + this.text + ") show\n"
+
+		if( this.rot != 0 )
+			s += "grestore\n"; 
+
+		return s;
 	},
 	
 	paint: function( gc )
@@ -459,14 +548,23 @@ strator.text = {
 			gc.restore();
 		}
 	},
-	
-	has_point: function( x, y )
+
+	get_bb: function( )
 	{
 		if( this.bb == null )
 			this.bb = strator.bounding_box.mk( this.x, this.y - this.size, this.x + (this.text.length * this.size)/2, this.y + this.size )
 
+		return this.bb;
+	},
+	
+	has_point: function( x, y )
+	{
+		if( this.bb == null )
+			this.get_bb();
+
 		return this.bb.inside( x, y, this.rot, this.x, this.y  );
 	},
+
 }
 
 strator.circle = {
@@ -491,9 +589,40 @@ strator.circle = {
 		no.spec = this.spec;
 		no.type = this.type;
 		no.paint = this.paint;					/* circle method extensions */
+		no.to_ps = this.to_ps;
 		no.fixate = this.fixate;
+		no.get_bb = this.get_bb;
 		no.has_point = this.has_point;
 		return no;
+	},
+
+	to_ps: function( xadj, yadj, colour_set )
+	{
+		var s = "newpath ";
+
+		//s += this.x + " " + this.y + " " + this.startr + " " + this.endr "\n";
+		s += "newpath " + (this.x - xadj) + " " + (yadj - this.y) + " " + this.r + " 0 360 arc\n";
+
+		if( this.fill )
+		{
+			s += colour_set.name2rgbstr( this.colour ) + " setrgbcolor\n";
+
+			if( this.outline )		/* need to save path so we can outline */
+				s += "gsave fill grestore\n";
+			else
+				s += "fill\n";
+		}
+
+		if( this.outline )
+		{
+			s += colour_set.name2rgbstr( this.olcolour ) + " setrgbcolor\n";
+			s += "stroke\n";
+		}
+
+		if( this.rot != 0 )
+			s += "grestore\n"; 
+
+		return s;
 	},
 
 	paint: function( gc )
@@ -541,6 +670,14 @@ strator.circle = {
 	{
 		return  Math.sqrt(  ((x - this.x) * (x - this.x)) + ((y - this.y) * (y - this.y)) )  <= this.r; 
 	},
+
+	get_bb: function()
+	{
+		if( this.bb == null )
+			this.bb = strator.bounding_box.mk( this.x - this.r, this.y - this.r, this.x + (this.r * 2), this.y + (this.r * 2) );
+
+		return this.bb;
+	}
 }
 	
 
@@ -663,12 +800,20 @@ strator.oval = {
 		return rv;
 	},
 
-	has_point:  function( x, y )		/* for now we'll use the bounding box, but x,y is center not ul */
+	get_bb: function( )
 	{
 		if( this.bb == null )
 			this.bb = strator.bounding_box.mk( this.x - (this.w/2), this.y - (this.h/2), this.x + (this.w/2), this.y + (this.h/2) );
 
-		return this.bb.inside( x, y, this.rot, this.x, this.y );
+		return this.bb;
+	},
+
+	has_point:  function( x, y )		/* for now we'll use the bounding box, but x,y is center not ul */
+	{
+		//if( this.bb == null )
+			//this.bb = strator.bounding_box.mk( this.x - (this.w/2), this.y - (this.h/2), this.x + (this.w/2), this.y + (this.h/2) );
+
+		return this.get_bb().inside( x, y, this.rot, this.x, this.y );
 	},
 }
 
@@ -693,10 +838,27 @@ strator.line = {
 		no.paint = this.paint;
 		no.fixate = this.fixate;
 		no.has_point = this.has_point;
+		no.to_ps = this.to_ps;
+		no.get_bb = this.get_bb;
 		no.set_grabpt = this.set_grabpt;
 		no.move = this.move;
 
 		return no;
+	},
+
+
+	to_ps: function( xadj, yadj, colour_set )
+	{
+		var s;
+
+		s = "newpath 1 setlinewidth ";
+		s += (this.x1 - xadj) + " " + (yadj - this.y1) + " moveto ";
+		s += (this.x2 - xadj) + " " + (yadj - this.y2) + " lineto\n";
+
+		s += colour_set.name2rgbstr( this.olcolour ) + " setrgbcolor\n";
+		s += "stroke\n";
+
+		return s;
 	},
 
 	paint:  function( gc )		/* if rotation is set we actually change the x2,y2 point based on rotation and set rot back to 0 -- easier to do has_point w/o rot */
@@ -726,10 +888,20 @@ strator.line = {
 		return;
 	},
 
-	has_point:  function( x, y )		/* no easy bounding box for a line... we allow some grace around the line for selection */
+	get_bb:	function()
 	{
 		if( this.bb == null )
 			this.bb =  strator.bounding_box.mk( this.x1, this.y1, this.x2, this.y2 );
+
+		return this.bb;
+	
+	},
+
+	has_point:  function( x, y )		/* no easy bounding box for a line... we allow some grace around the line for selection */
+	{
+		if( this.bb == null )
+			this.get_bb();
+			//this.bb =  strator.bounding_box.mk( this.x1, this.y1, this.x2, this.y2 );
 
 
 		if( Math.abs(this.x1 - this.x2) < 5 )		/* close to vertical -- undefined slope */
@@ -795,7 +967,7 @@ strator.scribble = {
 	spec: [ "type", "name", "x", "y", "olcolour", "opacity", "chain" ],		/* should be shared by all scribbles */
 	type: "scribble",
 
-	mk: function( x, y, olcolour, fill, outline )
+	mk: function( x, y, olcolour, fill, outline, sensitivity )
 	{
 		var i;
 		var no = strator.base_ling.mk();
@@ -807,6 +979,7 @@ strator.scribble = {
 		no.chain = [];										/* list of points that define the scribble */
 		no.fill = false;
 		no.outline = true;
+		no.sensitivity = sensitivity || 0;
 
 		no.lastx = x;				/* for lineseg paint when creating so we update as they scribble */
 		no.lasty = y;
@@ -820,9 +993,30 @@ strator.scribble = {
 		no.fixate = this.fixate;
 		no.move = this.move
 		no.set_grabpt = this.set_grabpt;
+		no.to_ps = this.to_ps;
+		no.get_bb = this.get_bb;
 		no.bounded_by = this.bounded_by;
 	
 		return no;
+	},
+
+
+	to_ps: function( xadj, yadj, colour_set )
+	{
+		var i;
+		var s = "newpath ";
+
+		s += (this.x - xadj) + " " + (yadj - this.y) + " moveto\n";
+		for( i = 0; i < this.chain.length; i += 2)
+			s += this.chain[i] - xadj  + " " + (yadj- this.chain[i+1]) + " lineto\n";
+
+		s += colour_set.name2rgbstr( this.olcolour ) + " setrgbcolor\n";
+		s += "stroke\n";
+
+		if( this.rot != 0 )
+			s += "grestore\n"; 
+
+		return s;
 	},
 
 	paint: function( gc )
@@ -840,9 +1034,10 @@ strator.scribble = {
 			for( i = 0; i < this.chain.length; i += 2)
 				gc.lineTo( this.chain[i], this.chain[i+1] );		/* draw evertything up to current point */
 
+			/* might benefit from some straight line detection to eliminate points */
 			dmx = this.lastx - this.x2;
 			dmy = this.lasty - this.y2;
-			if( Math.sqrt( (dmx * dmx) + (dmy * dmy) ) > 5 )	/* capture points only when mouse has moved more than just a few px */
+			//if( Math.sqrt( (dmx * dmx) + (dmy * dmy) ) > 0.75 )	/* helps reduce number of captured points >>> */
 			{
 				this.chain.push( this.x2 );
 				this.chain.push( this.y2 );
@@ -861,12 +1056,9 @@ strator.scribble = {
 		gc.stroke( );
 	},
 
-	has_point:  function( x, y )
+	get_bb: 	function()
 	{
-		var	i;
-
-		if( ! this.chain ) 
-			return false;
+		var i;
 
 		if( this.bb == null )
 		{
@@ -891,6 +1083,18 @@ strator.scribble = {
 			this.bb = strator.bounding_box.mk( minx, miny, maxx, maxy );		/* used for simple test */
 		}
 
+		return this.bb;
+	},
+
+	has_point:  function( x, y )
+	{
+		var	i;
+
+		if( ! this.chain ) 
+			return false;
+
+		this.get_bb();
+
 		if( this.bb.inside( x, y, this.rot, this.x, this.y ) )			/* if it's inside the overarching box, look further */
 		{
 			for( i = 0; i < this.chain.length; i += 2 )
@@ -905,11 +1109,24 @@ strator.scribble = {
 	
 	fixate:  function()
 	{
+		var dchain;
+
 		if( ! this.last_captured )
 		{
 			this.chain.push( this.x2 );
 			this.chain.push( this.y2 );			/* capture release point if needed */
 		}
+
+		//if( this.sensitivity > 0 )						/* see if we recognise the shape as an object */
+		//{
+			//dchain = shapet.turnpts( shapet.delaypts( this.chain ), this.sensitivity );		/* get delay points, then convert into turn points */
+			//if( dchain != null )
+				//console.log( "turn points", dchain.length )
+			//else
+				//console.log( "no turn points" );
+		//}
+		//else
+			//console.log( ">>>", this.sensitivity );
 		this.x2 = this.y2 = null;				/* turn 'off' rubberbanding */
 
 		return;

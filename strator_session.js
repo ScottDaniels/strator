@@ -62,11 +62,18 @@ strator.session = {
 		if( (no.farside = tools.get_biscuit( "strator_farside" )) == null )			/* default to cookie so we'll go back to same repeater if page is reloaded */
 			no.farside = farside;
 
-		no.isestablished = false;
+		document.title = "'Strator";
+
+		if( no.farside.substring( 0, 3 ) != "ws:"  && no.farside.substring( 0, 4 ) != "wss:" )
+		{
+			no.farside = "ws:" + no.farside;
+			tools.set_biscuit( "strator_farside",  no.farside, 0 );				/* reset if from an old version */
+		}
+
 		no.members = "undetermined"
 		no.listener = listener;						/* object with a cb_msg function to call when data received */
 
-		return no;
+	return no;
 	},
 
 	conn: function( farside )			
@@ -86,13 +93,19 @@ strator.session = {
 		this.link.onopen = function( e ) 
 		{
 			ss.isestablished = true;
-			ss.send( "scribble_r join " + ss.group + " " + ss.user );		/* always rejoin to set our current info and select group, but ensure update has run first */
+
+											/* always rejoin to set our current info and select group, but ensure update has run first */
+			if( ss.passwd )
+				ss.send( "scribble_r join " + ss.group + " " + ss.user + " " + ss.passwd );		
+			else
+				ss.send( "scribble_r join " + ss.group + " " + ss.user );		
 	
 			ss.send( "scribble_r refresh" );		/* ask for current drawing elements */
 			ss.send( "scribble_r list" );			/* get an updated list assuming that it will be here before user opens the conn window for the first time */
 			ss.send( "scribble_r glist" );
 			//doctools.obj_text( strator.DOC_CONN_STATE, "Connected:" + ss.group, "#00f000" );
 			doctools.obj_text( strator.DOC_CONN_STATE, ss.group, "#00f000" );
+			document.title = "'Strator " + ss.group;
 		}; 
 
 		this.link.onerror  = function( )
@@ -141,10 +154,23 @@ strator.session = {
 			console.log( "not sent: " + msg );
 	},
 
+	/*
+		forces the group to this name and sets the display value. probably invoked
+		if a change in group failed because of bad password.
+	*/
+	set_group: function( name, suffix, colour )
+	{
+		this.group = name;
+		document.title = "Strator " + this.group;
+		doctools.obj_text( strator.DOC_CONN_STATE, this.group + (suffix || ""), colour || "#00f000" );
+	},
+
 	/* 	given a hash of changes, update things which might force a new connection. If the host
 		changes, then we drive disc() and conn() to switch and the connection/handshake process
 		will take care of sending new user/group info. If we don't change hosts, we send new
 		user/group info to the repeater if there was a change.  
+
+		returns true if reconnection and refressh etc was done; else false if no new connection made.
 	*/
 	update: function( h )
 	{
@@ -170,6 +196,8 @@ strator.session = {
 			}
 		}
 
+		document.title = "Strator " + this.group;
+
 		if( this.listener )				/* allow listener to save things */
 			this.listener.pre_update( );
 
@@ -180,22 +208,27 @@ strator.session = {
 			tools.set_biscuit( "strator_farside", host ? host : this.farside, 0 );
 		}
 
-		if( host != null &&  host != this.farside )					/* need to make a new connection */
+		if( !this.isestablished || (host != null && host != this.farside) )					/* need to make a new connection */
 		{	
-			this.farside = host;
+			if( host != null )
+				this.farside = host;
 			this.disc();
 			if( this.listener )
-				this.listener.post_update( true );				/* always clear and refresh -- BEFORE the connection */
-			this.conn( this.farside );			/* connect to new repeater, and send user/group info after handshake */
+				this.listener.post_update( true );		/* always clear and refresh -- BEFORE the connection */
+			this.conn( this.farside );					/* connect to new repeater, and send user/group info after handshake */
 
 			return true;
 		}
 		else								
 		{
-			if( rejoin )
+			if( rejoin )	/* if user or group info changed, and we stayed on the same repeater, we must rejoin to send new info */
 			{
-				//this.send( "scribble_r join " + ss.group + " " + ss.user );		/* if user or group info changed, and we stayed on the same repeater, we must rejoin to send new info */
-				this.send( "scribble_r join " + this.group + " " + this.user );		/* if user or group info changed, and we stayed on the same repeater, we must rejoin to send new info */
+				if( this.passwd )
+					this.send( "scribble_r join " + this.group + " " + this.user + " " + this.passwd );		
+				else
+					this.send( "scribble_r join " + this.group + " " + this.user );	
+
+				this.passwd = null;						/* drop password as soon as it is sent */
 				if( this.isestablished )
 					doctools.obj_text( strator.DOC_CONN_STATE, this.group, "#00f000" );
 					//doctools.obj_text( strator.DOC_CONN_STATE, "Connected:" + this.group, "#00f000" );
@@ -205,7 +238,8 @@ strator.session = {
 		/* call refresh notification function to let creator know a refresh is needed */
 		if( this.listener )			/* why this woule be null doesn't make sense.... */
 			this.listener.post_update( refresh );
-		return refresh;			/* let caller know that we need a refresh of drawing for the new group -- they probalby want to clear slate first, so we DONT make request here */
+
+		return false;				/* lets caller know that reconn was not done */
 	},
 
 	refresh: function( )

@@ -51,15 +51,20 @@ strator.conf_popup = {
 		no = new tools.basic_popup( divname, target );
 
 		no.setup = this.setup;					/* setup executed just before division is shown -- fills in current values */
+		no.accept = this.accept;
 
-		doctools.set_onclick( strator.DOC_UPDATE_CONN,  function( e ) { no.target.send( "scribble_r list" ); } );
-		doctools.set_onclick( strator.DOC_APPLY_CONN,  function( e ) { no.accept( false ); } );
-		doctools.set_onclick( strator.DOC_DISCONN_CONN,  function( e ) { no.target.disc( ); } );
-		doctools.set_onclick( strator.DOC_RECONN_CONN,  function( e ) { no.target.conn( ); } );
+		doctools.set_onclick( strator.DOC_UPDATE_CONN,  function( e ) { no.target.send( "scribble_r list" ); no.target.send( "scribble_r glist" ); } );		/* update lists */
+		doctools.set_onclick( strator.DOC_APPLY_CONN,  function( e ) { no.accept( false ); } );							/* apply changes made in text entry */
+		doctools.set_onclick( strator.DOC_DISCONN_CONN,  function( e ) { no.target.disc( ); } );						/* disconnect the existing session */
+		doctools.set_onclick( strator.DOC_RECONN_CONN,  function( e ) { no.accept( true ); } );							/* appy any changes and then reconnect */
+		doctools.set_onclick( strator.DOC_RWRO_CONN,  function( e ) { no.target.send( "scribble_r readonly" ); } );
+
 		doctools.set_onclick( strator.DOC_CANCEL_CONN,  function( e ) { no.hide( ); } );
+
 		doctools.set_input( strator.DOC_HOST,  function( e ) { no.capture_change( "host", this.value, null, false ); } );
 		doctools.set_input( strator.DOC_USER,  function( e ) { no.capture_change( "user", this.value, null, false ); } );
 		doctools.set_input( strator.DOC_UGROUP,  function( e ) { no.capture_change( "group", this.value, null, false ); } );
+		doctools.set_input( strator.DOC_PASSWD,  function( e ) { no.capture_change( "passwd", this.value, null, false ); } );
 
 		/* slider and rescale buttons must be set in the driver even though they appear in the conf popup */
 		return no;
@@ -70,17 +75,29 @@ strator.conf_popup = {
 		//if( (ta = document.getElementById( strator.DOC_CANVSIZE_CONN)) != null )	/* do NOT set slider value as we don't have access to the current scale */
 			//ta.value = (this.scale_y * 100).toFixed(0);
 
-		if( (ta = document.getElementById( strator.DOC_UGROUP )) != null )
-			ta.value = this.target.group;
+		doctools.set_value( strator.DOC_UGROUP, this.target.group );
+		doctools.set_value( strator.DOC_USER, this.target.user );
+		doctools.set_value( strator.DOC_HOST, this.target.farside );
+		doctools.set_value( strator.DOC_PASSWD, "" );
 
-		if( (ta = document.getElementById( strator.DOC_USER )) != null )
-			ta.value = this.target.user;
+		return document.getElementById( strator.DOC_HOST );		/* return focus object */
+	},
 
-		if( (ta = document.getElementById( strator.DOC_HOST )) != null )
-			ta.value = this.target.farside;
+	accept: function( reconn )			/* accept changes forcing a reconnection if reconn is set -- we never hide on accept for this popup */
+	{
+		var changes = this.changes;
+		var did_reconn = false;
 
-		return ta;
-	}
+		doctools.set_value( strator.DOC_PASSWD, "" );		/* reset this field immediately */
+		this.changes = null;
+
+		if( this.target )
+		{
+			did_reconn = this.target.update( changes );
+			if( reconn && ! did_reconn )			/* must reconnect, and didn't change the connection during update... */
+				this.target.conn(  );
+		}
+	}	
 }
 
 strator.colour_popup = {
@@ -127,9 +144,9 @@ strator.ctl_popup = {
 			doctools.set_onclick( action_types[i] + "-r",  function( e ) { target.dmoder = parseInt( this.value ); } );
 		}
 
-		action_types = [ "smsize-radio", "mdsize-radio", "lgsize-radio" ];
-		for( i = 0; i < action_types.length; i++ )
-			doctools.set_onclick( action_types[i], function( e ) { target.txtsize = parseInt( this.value ); } );
+		// action_types = [ "smsize-radio", "mdsize-radio", "lgsize-radio" ];
+		//for( i = 0; i < action_types.length; i++ )
+			//doctools.set_onclick( action_types[i], function( e ) { target.txtsize = parseInt( this.value ); } );
 
 		return no;
 	}
@@ -293,21 +310,24 @@ strator.file_popup = {					/* load/save and other things */
 		var	i;
 		var name;
 
-		no = new tools.basic_popup( divname, null );
+		no = new tools.basic_popup( divname, null );		/* kept in scope for functions passed to onclick */
 
-		doctools.set_onclick( "cancel-file", function( e ) { no.hide( false ); } );					/* hide w/o applying any pending changes */
-		doctools.set_onclick( "load-file", function( e ) { no.apply_load(); no.hide( false ); } );	/* since we invoke the specialised apply function, pass false to hide here too */
-		doctools.set_onclick( "save-file", function( e ) { no.apply_save(); no.hide( false ); } );
+		doctools.set_onclick( strator.DOC_CANCEL_FILE, function( e ) { no.hide( false ); } );					/* hide w/o applying any pending changes */
+		doctools.set_onclick( strator.DOC_LOAD_FILE, function( e ) { no.apply_load(); no.hide( false ); } );	/* since we invoke the specialised apply function, pass false to hide here too */
+		doctools.set_change( strator.DOC_SEL_FILE, function( e ) { no.capture_change( "filename", this.files[0], null, false ); } ); /* file from selection menu */
 
-		doctools.set_change( "file-file", function( e ) { no.capture_change( "filename", this.files[0], null, false ); } );
+		no.save_data = save_data;			/* external function to do the save */
+		doctools.set_onclick( strator.DOC_SAVE_FILE, 	 function( e ) { no.save_data( "file" ); no.hide( false ); } );
+		doctools.set_onclick( strator.DOC_SAVE_PS, function( e ) {  no.save_data( "ps" ); no.hide( false ); } );
+		doctools.set_onclick( strator.DOC_SAVE_EPS, function( e ) { no.save_data( "eps" ); no.hide( false ); } );
 
+		doctools.set_onclick( strator.DOC_SAVE_INVERT,    function( e ) { no.invert = !no.invert; } );
+		doctools.set_onclick( strator.DOC_SAVE_BLACKBG,    function( e ) { no.blackbg = !no.blackbg; } );
 
 		no.apply_load = this.load;
-		no.apply_save = this.save;
 		no.load_complete = this.loadc;
 
 		no.load_async = loaded;				/* because we have to drive this asynch, it must be in a different spot */
-		no.save_data = save_data;			/* external function to do the save */
 		return no;
 	},
 
@@ -316,13 +336,6 @@ strator.file_popup = {					/* load/save and other things */
 	{
 		if( this.load_async )							/* user callback for the resultes is there (cannot imagine why it wouldn't be */
 			this.load_async( ethis.result );				/* call to process the loaded data */
-	},
-
-	/* specialised apply functions based on save/load button clicked */
-	save: function( )						/* called to actually write the file */
-	{
-		if( this.save_data )
-			this.save_data();
 	},
 
 	load:  function(  )						/* actually apply the load when the user has pressed the accept button */

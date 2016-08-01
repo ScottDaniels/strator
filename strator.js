@@ -71,14 +71,15 @@ var strator = strator || {};			/* don't depend on order that html includes us */
 		  multipoint lines
 		X load
 		X save
-		X Postscript export
-		  Encapsulated postscript export
+		  Postscript export
 		X New pop-up scheme doesn't clear/repaint window on connect/group change etc. 
 		X scribbling groups 
+		X TLS encyption to the repeater
+		X Read/only boards
 */
 
 
-strator.version = "v1.1/11193";
+strator.version = "v1.2a/18093";
 
 strator.PU_NONE = "";			/* popup types -- names of the outer divs that are initially hidden */
 strator.PU_TXTEDIT = "textedit-popup";	
@@ -105,18 +106,31 @@ strator.DOC_EDIT_TXTSIZVAL = "txtsize-value-edit";
 strator.DOC_EDIT_ACCEPT = "accept-edit";
 strator.DOC_EDIT_CANCEL = "cancel-edit";
 
+strator.DOC_SAVE_INVERT = "save-invert";					/* invert colours on export/save */
+strator.DOC_SAVE_BLACKBG = "save-blackbg";					/* paint background of bounding box black */
+strator.DOC_SAVE_FILE = "save-file";
+strator.DOC_SAVE_PS = "save-ps-file";
+strator.DOC_SAVE_EPS = "save-eps-file";
+strator.DOC_SEL_FILE = "selected-file";						/* field with filename after selection */
+strator.DOC_LOAD_FILE = "load-file";						/* load button */
+strator.DOC_CANCEL_FILE = "cancel-file";
+
+															/* configuation popup menu things */
 strator.DOC_DISCONN_CONN = "disconn-conn";					/* connection popup buttons */
 strator.DOC_UPDATE_CONN = "update-conn";
 strator.DOC_APPLY_CONN = "apply-conn";
 strator.DOC_RESCALE_CONN = "rescale-conn";
 strator.DOC_CANVSIZE_CONN = "canvscale-conn";
 strator.DOC_RECONN_CONN = "reconn-conn";
+strator.DOC_RWRO_CONN = "rwro-conn";
 strator.DOC_CANCEL_CONN = "cancel-conn";
 strator.DOC_GMEMBERS = "gmembers-conn";						/* connection popup fields: members of the group this user belongs to */
 strator.DOC_GROUPS = "groups-conn";							/* known groups */
 strator.DOC_UGROUP = "group-conn";							/* current group user has joined */
+strator.DOC_PASSWD = "passwd-conn";							/* password entry */
 strator.DOC_HOST = "host-conn";								/* host;port connected to */
 strator.DOC_USER = "user-conn";								/* user name */
+strator.DOC_SENS = "sensivity-conn"							/* sensivity slider */
 
 strator.DOC_SEDIT_FILL = "fill-soledit-radio";				/* solid edit things -- radio buttons for outline/fill combinations */
 strator.DOC_SEDIT_OUTLINE = "outline-soledit-radio";
@@ -162,11 +176,26 @@ strator.MDOWN = 1;
 strator.bounding_box = {
 	mk:  function( x1, y1, x2, y2 )
 	{
+		var no;
+
 		no = Object.create( strator.bounding_box );
 		no.ulx = x1 > x2 ? x2 : x1;
 		no.uly = y1 > y2 ? y2 : y1;
 		no.h = Math.abs( y1 - y2 );
 		no.w = Math.abs( x1 - x2 );
+
+		return no;
+	},
+
+	dup: function( )
+	{
+		var no;
+
+		no = Object.create( strator.bounding_box );
+		no.ulx = this.ulx;
+		no.uly = this.uly;
+		no.h = this.h;
+		no.w = this.w;
 
 		return no;
 	},
@@ -188,6 +217,34 @@ strator.bounding_box = {
 		}
 
 		return px >= this.ulx   &&  px <= (this.ulx + this.w)  &&  py >= this.uly  &&  py <= (this.uly + this.h);
+	},
+
+	/* 
+		expand, if needed, this bb to include the bb passed in 
+	*/
+	engulf:	function( target )
+	{
+		if( target == null )
+			return;
+
+
+
+		if( target.ulx < this.ulx )
+		{
+			this.w += this.ulx - target.ulx;
+			this.ulx = target.ulx;
+			
+		}
+		if( target.uly < this.uly )
+		{
+			this.h += this.uly - target.uly;
+			this.uly = target.uly;
+		}
+
+		if( target.ulx + target.w > this.ulx + this.w )
+			this.w = (target.ulx + target.w)  - this.ulx;
+		if( target.uly + target.h > this.uly + this.h )
+			this.h = (target.uly + target.h) - this.uly;
 	}
 }
 
@@ -196,14 +253,15 @@ strator.bounding_box = {
 	http://stackoverflow.com/questions/10406930/how-to-construct-a-websocket-uri-relative-to-the-page-uri
 */
 function Scribble_url( port ) {
-    var l = window.location;
-    return ((l.protocol === "https:") ? "wss://" : "ws://") + l.hostname + ":" + port;
+	var l = window.location;
+	return ((l.protocol === "https:") ? "wss://" : "ws://") + l.hostname + ":" + port;
 }
+
 
 /* --------------------------- main stuff and driver -------------------------- */
 
 strator.driver = {
-	mk:	function( scribble_r_port, user )
+	mk:	function( scribble_port, user )
 	{
 		var o;						/* generic object reference */
 		var no;						/* new object */
@@ -233,9 +291,10 @@ strator.driver = {
 		no.txtsize = 14;
 		no.font = "sans-serif";
 		no.last_cursor = "default"								/* last cursor to detect need to change */
+		no.sensitivity = 24;									/* freehand object creation sensivity -- controlled by slider */
 
 		no.clique = strator.coterie.mk( );						/* the scribblings manager */
-		addr = Scribble_url( scribble_r_port )
+		addr = Scribble_url( scribble_port )
 		no.session = strator.session.mk( addr, user, no );			/* create session and add this as listener (supplies cb_msg function) */
 		no.session.conn( );							/* start connection -- session listener functions not defined as closures */	
 
@@ -246,7 +305,17 @@ strator.driver = {
 		no.ctl_pu = strator.ctl_popup.mk( strator.PU_CTL, no );
 		no.tedit_pu = strator.tedit_popup.mk( strator.PU_TXTEDIT, function() { no.paint() } );
 		no.sedit_pu = strator.sedit_popup.mk( strator.PU_SOLIDEDIT, function() { no.paint( ) } );
-		no.file_pu = strator.file_popup.mk( strator.PU_FILE, function( data ) { no.clique.load( data ); no.paint(); }, function( ) { no.clique.save(); } );
+
+		no.file_pu = strator.file_popup.mk( strator.PU_FILE, 
+					function( data ) { 		/* invoked when load button is pressed */
+						no.clique.load( data ); 
+						no.paint(); 
+					}, 
+
+					function( how ) {		/* invoked when save/export buttons are cliked  */
+						no.clique.save_data( how, no.file_pu.invert, no.file_pu.blackbg ); 
+					} 
+		);
 
 		/* top row of buttons */
 		doctools.set_onclick( "file-button", 		function( e ) { no.file_pu.toggle( ); } );
@@ -254,7 +323,7 @@ strator.driver = {
 		doctools.set_onclick( "open-ctl-button", 	function( e ) { no.ctl_pu.toggle(  ); } );
 		doctools.set_onclick( "open-colour-button", function( e ) { no.colour_pu.toggle( ); } );
 		doctools.set_onclick( "clear-button", 	function( e ) { no.clear_slate( no ); } );
-		doctools.set_onclick( "dump-button", 		function( e ) { no.clique.dump( ); } );
+		//doctools.set_onclick( "dump-button", 		function( e ) { no.clique.dump( ); } );
 
 		//document.getElementById('sendraw-conn').addEventListener( "click", function( e ) { no.send_raw(  ); }, false );
 
@@ -265,6 +334,11 @@ strator.driver = {
 			function( e ) { 
 				no.adjust_scale( strator.DOC_SLATE_DIV, strator.DOC_SLATE, e.target.value ); 
 				no.paint( ); 
+			}, false );
+
+		document.getElementById( strator.DOC_SENS ).addEventListener( "input", 
+			function( e ) {
+				no.sensitivity = e.target.value; 
 			}, false );
 
 		doctools.set_input( strator.DOC_CTL_DEFTXTSIZE, 
@@ -502,8 +576,9 @@ strator.driver = {
 					case strator.SCRIBBLE:
 						if( no.rubber_band == null )
 						{
-							cursor = "crosshair"
-							no.rubber_band = strator.scribble.mk( no.st_x, no.st_y, no.olcolour );
+							//cursor = "crosshair"
+							cursor = "default"
+							no.rubber_band = strator.scribble.mk( no.st_x, no.st_y, no.olcolour, false, true, no.sensitivity );
 							no.clique.add( no.rubber_band );
 						}
 						break;
@@ -678,7 +753,7 @@ strator.driver = {
 						no.clicks = 1;
 						break;
 
-					//case strator.DELETE:		/* all of these handled by default case *?
+					//case strator.DELETE:		/* all of these handled by default case */
 					//case strator.EDIT:
 					//case strator.RECOLOUR:
 					//case strator.ROTATE:		
@@ -818,6 +893,10 @@ strator.driver = {
 	cb_msg: function( msg )							/* session invokes this with message */
 	{
 		var tag;
+		var g;
+		var i;
+		var ele;
+		var rec;
 
 		var h = tools.str2hash( msg ); 			/* convert message to a hash once, and pass hash round */
 
@@ -826,16 +905,35 @@ strator.driver = {
 		{
 			switch( h.lookup( "cmd" ) )
 			{
+				case "reject":									/* something failed from the repeater side */
+					if( (g = h.lookup( "group" )) != null )		/* group switch didn't go well, change group */
+					{
+						this.session.set_group( g,  " [E]", "#ffff00" );
+						this.conf_pu.setup();						/* force reversion to current things */
+					}
+					return;
+					break;
+
 				case "refresh":					/* send a list of lings to the repeater with the given tag */
 					if( (tag = h.lookup( "tag" )) != null )
 						this.clique.send_refresh( this.session, tag );
+					return;
 					break;
 
 				case "update-groups":								/* a new list of groups */
-					this.session.groups = h.lookup( "value" );
-					this.session.groups = this.session.groups.replace( / /g, "<br />" );
+					g = this.session.groups = h.lookup( "value" );
+					this.session.groups = this.session.groups.replace( /,/g, "<br />" );
 					if( (o = document.getElementById( strator.DOC_GROUPS)) != null )
 						o.innerHTML = this.session.groups;	
+
+					
+					rec = g.split( "," );
+					for( i = 0; i < rec.length; i++ )
+					{
+						ele = rec[i].split( " " );
+						if( ele[0] == this.session.group )
+							doctools.obj_text( strator.DOC_CONN_STATE, this.session.group + ele[2], "#00f000" );
+					}
 					return;					
 					break;
 
@@ -914,7 +1012,10 @@ strator.splash = {
 			gc.fillStyle = "#a09000";
 			gc.font = "14px sans-serif"
 			if( strator.version )
+			{
 				gc.fillText( strator.version, 105, 58 );		/* version */
+				doctools.obj_text( "version", strator.version, "#00a0ff" );
+			}
 			gc.restore();
 		}
 	}

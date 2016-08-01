@@ -35,9 +35,20 @@
 	Mnemonic:	strator_coterie.js
 	Abstract: 	The coterie is used to manage a set of scribblings. Scribblings are 
 				assumed to have  these functions:
+        			bounded_by(bb)	(return true if the ling is completely inside of the given bounding box)
+        			dup()			(return a dupliate ling)
+        			fixate()		(make final adjustments after rubberbanding at creation or moving)
+        			has_point(x,y)	(return true if the point is inside or on the edge of the ling)
+        			mk				(return a newly created ling)
+        			move			(adjust the location of the ling)
 					paint( gc ) 	(gc is the html-5 canvas graphcs context)
-					to_str() 
+        			set_changed()	(sets teh changed flag for the ling. if it's a group sets for all sublings)
+        			set_colour(colour)		(sets the colour for the ling. if it's a group then sets for all sublings)
+        			set_grabpt(x,y)	(sets the point where the mouse was when the ling was 'grabbed' for motion)
+					to_str() 		(generate a string that can be read by another strator to produce the ling)
+					to_ps()			(generate the postscript needed to render the object)
 					update( h )		(h is a symtab hash of key/value pairs to update)
+
 
 				Scribblings will be give a name as they are added to the mix.  As scribblings
 				are painted, their changed property is checked and if it is true, then the 
@@ -74,7 +85,7 @@ strator.coterie = {
 		save accomplished by convencing the browser we have somehting to download and let
 		it prompt and save the information. It works, but it's a sucky interface. 
 	*/
-	save: function()
+	save_file: function( )
 	{
 		var stuff = "";
 		var	i;
@@ -83,6 +94,143 @@ strator.coterie = {
 			if( this.lings[i].type != "group" )				/* we don't save group definitions */
 			 	stuff += this.lings[i].to_str() + "\n";
 		tools.save2file( stuff, "/tmp/stuff" );
+	},
+
+	/*
+		create a bounding box of all lings in the coterie
+	*/
+	get_bb: function( pad )
+	{
+		pad = pad | 0;
+
+		this.bb = null;								/* I don't think we'll do this enough to warrent tracking it and only gen if changes made */
+		for( i = 0; i < this.lings.length; i++ )		
+		{
+			if( this.lings[i].type != "group" )				/* groups don't need to be considered */
+			{
+				if( this.bb == null )
+					this.bb = this.lings[i].get_bb().dup();			/* first is just a duplicate */
+				else
+					this.bb.engulf( this.lings[i].get_bb() );			/* expand our bb to include the ling's box */
+			}
+		}
+
+		if( this.bb == null ) {
+			this.bb = strator.bounding_box.mk( 0, 0, this.w, this.h )
+		} else {
+			this.bb.height += pad;
+			this.bb.width += pad;
+		}
+		return this.bb;
+	},
+	
+	/*
+		save as a plain postscript file
+	*/
+	save_ps: function( invert, blackbg, scale )
+	{
+		var stuff;
+		var	dt;
+
+		var padding = 10;
+
+		scale = scale || 0.5;
+
+		this.get_bb( );
+		dt = new Date();
+		colour_set = colour.set.mk( invert, 255 );
+
+		stuff = "%!PS-Adobe-2.0\n";
+		stuff += "%%Title: untitled\n";
+		stuff += "%%Creator: 'Strator " + strator.version + "\n";
+		stuff += "%%CreationDate: " + dt.toISOString() + "\n";
+		stuff += "%%BeginSetup\n";
+		stuff += "mark {\n";
+		stuff += "%BeginFeature: *PageRegion C\n";
+		stuff += "<< /PageSize [" + ((this.bb.w+padding)*scale) + " " + ((this.bb.h+padding)*scale) + "] >> setpagedevice\n";
+		stuff += "%EndFeature\n";
+		stuff += "} stopped cleartomark\n";
+		stuff += "%%EndSetup\n";
+		if( scale != 1 )
+			stuff += scale + " " + scale + " scale\n";
+
+		if( blackbg )
+			stuff += "0 0 moveto\n" + (this.bb.w +padding) + " 0 rlineto\n0 " + (this.bb.h+padding) + " rlineto\n-" + (this.bb.w + padding) + " 0 rlineto closepath fill\n"; 
+
+		for( i = 0; i < this.lings.length; i++ )		
+		{
+			if( this.lings[i].type != "group" )				/* groups don't need to be considered */
+				stuff += "%ling: " + i +"\n" + this.lings[i].to_ps( this.bb.ulx-(padding/2), this.bb.uly + this.bb.h + (padding/2), colour_set ) + "\n";
+		}
+
+		tools.save2file( stuff, "/tmp/stuff" );
+	},
+
+	/*
+		save as encapsulated postscript
+	*/
+	save_eps: function( invert, blackbg, scale )
+	{
+		var stuff;
+		var	dt;
+
+		var padding = 10;
+
+		scale = scale || 0.5;
+
+		this.get_bb( );
+		dt = new Date();
+		colour_set = colour.set.mk( invert, 255 );
+
+		stuff = "%!PS-Adobe-2.0 EPSF-2.0\n";
+		stuff += "%%Title: untitled\n";
+		stuff += "%%Creator: 'Strator " + strator.version + "\n";
+		stuff += "%%CreationDate: " + dt.toISOString() + "\n";
+		stuff += "%%BoundingBox: 0 0 " + ((this.bb.w + padding)*scale) + " " + ((this.bb.h + padding)*scale) + "\n";
+		stuff += "%%Magnification: 1.0000\n";
+		stuff += "%%EndComments\n";
+		stuff += "%%BeginProlog\n";
+		stuff += "%%EndProlog\n";
+		if( scale != 1 )
+			stuff += scale + " " + scale + " scale\n";
+
+		if( blackbg )
+			stuff += "0 0 moveto\n" + (this.bb.w +padding) + " 0 rlineto\n0 " + (this.bb.h+padding) + " rlineto\n-" + (this.bb.w + padding) + " 0 rlineto closepath fill\n"; 
+
+		for( i = 0; i < this.lings.length; i++ )		
+		{
+			if( this.lings[i].type != "group" )				/* groups don't need to be considered */
+				//stuff += "%ling: " + i +"\n" + this.lings[i].to_ps( this.bb.ulx-(padding/2), this.bb.uly + this.bb.h + (padding/2) ) + "\n";
+				stuff += "%ling: " + i +"\n" + this.lings[i].to_ps( this.bb.ulx-(padding/2), this.bb.uly + this.bb.h + (padding/2), colour_set ) + "\n";
+		}
+
+		stuff += "%%Trailer\n%EOF\n";
+
+		tools.save2file( stuff, "/tmp/stuff" );
+	},
+
+	/*
+		invoked when one of the file 'save' buttons is clicked. 
+		how is a string indicating how we should save the data: file, ps, eps
+		if invert is true black/white will be exchanged.
+		if blackbg is true the area within the bounding box will be fillwd with black
+	*/
+	save_data: function( how, invert, blackbg )
+	{
+		switch( how )
+		{
+			case "ps":
+				this.save_ps( invert | false, blackbg | false );
+				break;
+
+			case "eps":
+				this.save_eps( invert | false, blackbg | false );
+				break;
+
+			default:
+				this.save_file( )
+				break;
+		}
 	},
 
 	load:  function( buffer )			/* buffer is a newline separated buffer of ling definitions (assuming from read file) */
@@ -149,10 +297,45 @@ strator.coterie = {
 		this.nstack.pop();
 	},
 
-	drop_all:  function( )
+	/*
+		if save is false we will not save on undo list --- allows a drop all when undoing a clear
+	*/
+	drop_all:  function( save )
 	{
+		if( save == null )
+			save = true;
+
+		if( save )
+		{
+			this.undo_lings = this.lings;
+			this.undo_nameref = this.nameref; 
+		}
+		else
+			this.undo_lings = this.undo_nameref = null;		/* when not saving, ditch the last saved thing */
+
 		this.lings = [];
 		this.nameref = symtab.mk();
+	},
+
+	/*
+		undo a clear (drop_all)
+	*/
+	restore_lings: function( )
+	{
+		if( this.undo_lings )
+		{
+			this.lings = this.undo_lings;
+			this.nameref = this.undo_nameref
+			this.undo_lings = this.undo_nameref = null;		
+		}
+	},
+
+	/*
+		returns true if the scribblings can be restored from undo
+	*/
+	can_restore: function()
+	{
+		return this.undo_lings != null;
 	},
 
 	/* 
@@ -198,7 +381,7 @@ strator.coterie = {
 					switch( h.lookup( "cmd" ) )
 					{
 						case "clear":
-							this.drop_all( );
+							this.drop_all( false );				/* clear command does not save things */
 							break;
 
 						case "raise2top":
@@ -256,7 +439,12 @@ strator.coterie = {
 				session.send( tag + " " + this.lings[i].to_str() );
 	},
 
-	paint:  function( gc, session )		/* accept gc here to allow painting on any canvas (preview vs active etc.) */
+	/*
+		paint everything. sends deltes for things deleted since last paint. if a scribbling
+		has changed, or the force change flag is set, then the scribbling is sent to the 
+		repeater for broadcast. 
+	*/
+	paint:  function( gc, session, force_changed )		/* accept gc here to allow painting on any canvas (preview vs active etc.) */
 	{
 		var i;
 
@@ -277,7 +465,7 @@ strator.coterie = {
 		for( i = 0; i < this.lings.length; i++ )				/* draw from the back to the front */
 		{
 			this.lings[i].paint( gc );				
-			if( this.lings[i].changed && session != null )		/* send out to repeater if it has changed */
+			if( (this.lings[i].changed || force_changed) && session != null )		/* send out to repeater if it has changed */
 			{
 				session.send( this.lings[i].to_str() );
 				this.lings[i].changed = false;

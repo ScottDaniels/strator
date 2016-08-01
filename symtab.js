@@ -31,6 +31,7 @@
 */
 
 /*
+ ------------------------------------------------------------------------------
    Mnemonic:	symtab.js
    Abstract: 	Implements a symbol table (hash). While objects themselves
   				can be treated as a hash table there are to main reasons 
@@ -66,6 +67,10 @@
 
 				delete:
 					hash.delete( "key" );
+
+	Author:		E. Scott Daniels
+	Date:		15 December 2012
+ ------------------------------------------------------------------------------
 */
 
 

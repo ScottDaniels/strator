@@ -176,6 +176,8 @@ doctools = {
 	
 		if( (obj = document.getElementById( id )) != null )
 			obj.addEventListener( "click", callback, false );
+else
+console.log( "unable to register click listener for: ", id );
 	},
 
 	set_change: function( id, callback )
@@ -200,7 +202,5 @@ doctools = {
 	
 		if( (obj = document.getElementById( id )) != null )
 			obj.value = v;
-else
-console.log( ">>> cannot find", id );
 	}
 }
