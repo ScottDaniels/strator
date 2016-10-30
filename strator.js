@@ -336,10 +336,12 @@ strator.driver = {
 				no.paint( ); 
 			}, false );
 
+/*
 		document.getElementById( strator.DOC_SENS ).addEventListener( "input", 
 			function( e ) {
 				no.sensitivity = e.target.value; 
 			}, false );
+*/
 
 		doctools.set_input( strator.DOC_CTL_DEFTXTSIZE, 
 			function( e ) 
